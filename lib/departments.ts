@@ -25,12 +25,12 @@ export const departments=[
 // Legacy products retain their saved category; more specific departments also
 // accept new products assigned directly through the admin product form.
 export function inDepartment(p:Product,id:string){
+ if(p.category===id)return true;
  const name=p.name+' '+p.bn;
- if(id==='fruits')return p.category==='fruits'||(p.category==='fresh'&&!/corn|onion|potato|vegetable|ভুট্টা|আলু|পেঁয়াজ/i.test(name));
- if(id==='vegetables')return p.category==='vegetables'||(p.category==='fresh'&&/corn|onion|potato|vegetable|ভুট্টা|আলু|পেঁয়াজ/i.test(name));
- if(id==='icecream')return p.category==='icecream'||(p.category==='frozen'&&/ice cream|icecream|cone|fudge|আইসক্রিম|স্যাভয়/i.test(name));
- if(id==='frozen')return p.category==='frozen'&&!/ice cream|icecream|cone|fudge|আইসক্রিম|স্যাভয়/i.test(name);
- if(id==='tea')return p.category==='tea'||(p.category==='drinks'&&/coffee|tea|কফি|চা|cappuccino/i.test(name));
- if(id==='drinks')return p.category==='drinks'&&!/coffee|tea|কফি|চা|cappuccino/i.test(name);
- return p.category===id;
+ const isLegacyFreshSeed=['guava','pineapple','corn'].includes(p.id);
+ if(id==='fruits')return p.category==='fresh'&&(!isLegacyFreshSeed||!/corn|onion|potato|vegetable|ভুট্টা|আলু|পেঁয়াজ/i.test(name));
+ if(id==='vegetables')return p.category==='fresh'&&(!isLegacyFreshSeed||/corn|onion|potato|vegetable|ভুট্টা|আলু|পেঁয়াজ/i.test(name));
+ if(id==='icecream')return p.category==='frozen'&&/ice cream|icecream|cone|fudge|আইসক্রিম|স্যাভয়/i.test(name);
+ if(id==='tea')return p.category==='drinks'&&/coffee|tea|কফি|চা|cappuccino/i.test(name);
+ return false;
 }

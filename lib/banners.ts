@@ -16,7 +16,7 @@ export function validateBanners(value:unknown):value is Banner[]{
  return value.every(b=>{
   if(!b||typeof b!=='object'||typeof b.id!=='string'||! /^[a-z0-9-]{1,64}$/.test(b.id)||ids.has(b.id))return false;ids.add(b.id);
   if(!['title','en'].every(k=>typeof b[k]==='string'&&b[k].trim().length>0&&b[k].length<=100)||!['subtitle','subtitleEn'].every(k=>typeof b[k]==='string'&&b[k].length<=180))return false;
-  if(!['hero','collection'].includes(b.placement)||typeof b.active!=='boolean'||!bannerTargets.some(t=>t.id===b.category)||!['deals','cooking','care','morning','plain'].includes(b.theme)||typeof b.image!=='string'||b.image.length>1000)return false;
+  if(!['hero','collection'].includes(b.placement)||typeof b.active!=='boolean'||(!bannerTargets.some(t=>t.id===b.category)&&!/^[a-z0-9][a-z0-9-]{1,63}$/.test(b.category))||!['deals','cooking','care','morning','plain'].includes(b.theme)||typeof b.image!=='string'||b.image.length>1000)return false;
   if(!b.image)return true;
   if(/^\/api\/images\/[a-f0-9-]{36}$/.test(b.image))return true;
   try{const u=new URL(b.image);return u.protocol==='https:'&&!u.username&&!u.password;}catch{return false;}
