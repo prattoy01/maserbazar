@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useMemo,useRef,useState,type FormEvent,type ReactNode} from 'react';
-import {ShoppingBasket,MapPin,ChevronDown,ChevronRight,Search,UserRound,Globe,Plus,Minus,X,Clock,Tag,Truck,ShieldCheck,Package,ArrowLeft,Check,CheckCircle2,ClipboardList,LayoutGrid,Apple,Milk,Wheat,Cookie,Coffee,IceCreamBowl,SprayCan,Heart,Flame,Info,Leaf,ShoppingBag,Menu,SlidersHorizontal,LoaderCircle} from 'lucide-react';
+import {ShoppingBasket,MapPin,ChevronDown,ChevronUp,ChevronRight,Search,UserRound,Globe,Plus,Minus,X,Tag,Truck,ShieldCheck,Package,ArrowLeft,Check,CheckCircle2,ClipboardList,LayoutGrid,Apple,Milk,Wheat,Cookie,Coffee,IceCreamBowl,SprayCan,Heart,Info,Leaf,ShoppingBag,Menu,SlidersHorizontal,LoaderCircle,Wallet,Crown,ReceiptText,Ticket,Trophy,CircleHelp,LogOut} from 'lucide-react';
 import {catalog,categories,areas,totals,type Product} from '@/lib/catalog';
 import {BundlePanel,AddressManager,CheckoutDelivery} from './shopping-tools';
 import {deliveryWindows,type SavedAddress} from '@/lib/shopping';
@@ -13,8 +13,10 @@ import ProductDetailModal from './product-detail-modal';
 import {departments,inDepartment} from '@/lib/departments';
 import {locationStorageKey,parseDeliveryLocation,type DeliveryLocation} from '@/lib/delivery-location';
 type Order={id:string;items:(Product&{quantity:number})[];subtotal:number;discount:number;delivery:number;total:number;status:string;created_at:string;area:string;delivery_date:string|null;delivery_slot:string|null};
-type ApiReply={categorySettings:CategorySettings;banners:Banner[];error:string;products:Product[];items:Record<string,number>;orders:Order[];order:{id:string;total:number};wishlist:string[];addresses:SavedAddress[];warnings:string[]};
+type UserProfile={id:string;name:string;email:string};
+type ApiReply={user?:UserProfile;categorySettings:CategorySettings;banners:Banner[];error:string;products:Product[];items:Record<string,number>;orders:Order[];order:{id:string;total:number};wishlist:string[];addresses:SavedAddress[];warnings:string[]};
 type ModalName='product'|'location'|'checkout'|'orders'|'info'|'list'|'signin'|'success'|'addresses'|null;
+const FAV_STORAGE_KEY='mb_favourites_v1';
 const bnNum=(n:number)=>new Intl.NumberFormat('bn-BD').format(n);
 const iconMap:Record<string,typeof ShoppingBasket>={grid:LayoutGrid,tag:Tag,basket:ShoppingBasket,apple:Apple,milk:Milk,wheat:Wheat,cookie:Cookie,coffee:Coffee,icecream:IceCreamBowl,spray:SprayCan,heart:Heart};
 const statusLabels:Record<string,string>={received:'অর্ডার গ্রহণ করা হয়েছে',confirmed:'অর্ডার নিশ্চিত',packing:'প্যাকিং চলছে',out_for_delivery:'ডেলিভারির পথে',delivered:'ডেলিভারি সম্পন্ন'};
@@ -27,35 +29,99 @@ export default function Storefront({initialBanners=defaultBanners,initialCategor
  const [categorySettings,setCategorySettings]=useState(initialCategories);
  const [banners,setBanners]=useState<Banner[]>(initialBanners);
  const [products,setProducts]=useState<Product[]>(catalog),[category,setCategory]=useState('all'),[search,setSearch]=useState(''),[lang,setLang]=useState<'bn'|'en'>('bn'),[sort,setSort]=useState('recommended');
- const [cart,setCart]=useState<Record<string,number>>({}),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[saving,setSaving]=useState(false),[signed,setSigned]=useState(false),[catalogOnline,setCatalogOnline]=useState(false);
- const [modal,setModal]=useState<ModalName>(null),[selected,setSelected]=useState<Product|null>(null),[area,setArea]=useState(areas[0]),[mobileCart,setMobileCart]=useState(false),[menu,setMenu]=useState(false);
+ const [cart,setCart]=useState<Record<string,number>>({}),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[saving,setSaving]=useState(false),[signed,setSigned]=useState(false),[userProfile,setUserProfile]=useState<UserProfile|null>(null),[catalogOnline,setCatalogOnline]=useState(false);
+ const [modal,setModal]=useState<ModalName>(null),[selected,setSelected]=useState<Product|null>(null),[area,setArea]=useState(areas[0]),[mobileCart,setMobileCart]=useState(false),[menu,setMenu]=useState(false),[userMenuOpen,setUserMenuOpen]=useState(false);
  const [couponInput,setCouponInput]=useState(''),[coupon,setCoupon]=useState(''),[couponError,setCouponError]=useState(''),[error,setError]=useState(''),[toast,setToast]=useState(''),[orders,setOrders]=useState<Order[]>([]),[orderLoading,setOrderLoading]=useState(false),[orderError,setOrderError]=useState(''),[success,setSuccess]=useState<{id:string;total:number}|null>(null);
  const [list,setList]=useState(''),[info,setInfo]=useState('store');const mutation=useRef(Promise.resolve()),requestId=useRef(''),collectionRequest=useRef<{signature:string;id:string}|null>(null);
  const [wishlist,setWishlist]=useState<string[]>([]),[wishBusy,setWishBusy]=useState(''),[addresses,setAddresses]=useState<SavedAddress[]>([]),[collectionBusy,setCollectionBusy]=useState(false),[cartReview,setCartReview]=useState<string[]|null>(null);
  const [deliveryAddress,setDeliveryAddress]=useState(''),[locationConfirmed,setLocationConfirmed]=useState(false);
  const searchInput=useRef<HTMLInputElement>(null);
+ const userMenuRef=useRef<HTMLDivElement>(null);
  const [mobileSearch,setMobileSearch]=useState(false),[bannerIndex,setBannerIndex]=useState(0);const bannerTrack=useRef<HTMLDivElement>(null);
  useEffect(()=>{if(mobileSearch)searchInput.current?.focus();},[mobileSearch]);
- async function refreshAccount(){const r=await fetch('/api/account'),d=(await r.json()) as ApiReply;if(!r.ok)throw new Error(d.error);setWishlist(d.wishlist);setAddresses(d.addresses);}
+ useEffect(()=>{
+  if(!userMenuOpen)return;
+  function handleClickOutside(e:MouseEvent){if(userMenuRef.current&&!userMenuRef.current.contains(e.target as Node))setUserMenuOpen(false);}
+  function handleKey(e:KeyboardEvent){if(e.key==='Escape')setUserMenuOpen(false);}
+  document.addEventListener('mousedown',handleClickOutside);
+  document.addEventListener('keydown',handleKey);
+  return()=>{document.removeEventListener('mousedown',handleClickOutside);document.removeEventListener('keydown',handleKey);};
+ },[userMenuOpen]);
+ async function refreshAccount(){
+  const r=await fetch('/api/account'),d=(await r.json()) as ApiReply;
+  if(!r.ok)throw new Error(d.error);
+  if(d.user)setUserProfile(d.user);
+  let merged=d.wishlist||[];
+  try{
+   const localRaw=localStorage.getItem(FAV_STORAGE_KEY);
+   const localIds=localRaw?(JSON.parse(localRaw) as string[]).filter(id=>typeof id==='string'):[];
+   merged=[...new Set([...merged,...localIds])];
+   localStorage.setItem(FAV_STORAGE_KEY,JSON.stringify(merged));
+  }catch{}
+  setWishlist(merged);
+  setAddresses(d.addresses);
+ }
  const tr=(bn:string,en:string)=>lang==='bn'?bn:en;
  const money=(n:number)=>'৳'+(lang==='bn'?bnNum(n):n.toLocaleString('en-BD'));
  const items=useMemo(()=>products.filter(p=>(cart[p.id]||0)>0).map(p=>({...p,quantity:cart[p.id]})),[cart,products]);
  const quote=totals(items,coupon),count=items.reduce((n,p)=>n+p.quantity,0);
- useEffect(()=>{try{const saved=parseDeliveryLocation(localStorage.getItem(locationStorageKey)),preferred=localStorage.getItem('bazar-area-rajshahi');if(saved){setArea(saved.area);setDeliveryAddress(saved.address);setLocationConfirmed(true);}else if(preferred&&areas.includes(preferred)){setArea(preferred);setLocationConfirmed(true);}else if(window.matchMedia('(max-width:740px)').matches&&!sessionStorage.getItem('bazar-location-prompt-rajshahi')){setModal('location');sessionStorage.setItem('bazar-location-prompt-rajshahi','1');}}catch{/* Shopping remains available if browser storage is disabled. */}
- Promise.all([fetch('/api/catalog').then(async r=>{const d=(await r.json()) as ApiReply;if(!r.ok)throw new Error(d.error);setProducts(d.products);setBanners(d.banners);setCategorySettings(d.categorySettings);setCatalogOnline(true);}).catch(()=>setCatalogOnline(false)),fetch('/api/cart').then(async r=>{const d=(await r.json()) as ApiReply;if(r.ok){setCart(d.items);setSigned(true);await refreshAccount();}else if(r.status!==401)setError(d.error);}).catch(()=>setError('কার্ট লোড করা যায়নি। পেজ রিফ্রেশ করে আবার চেষ্টা করুন।'))]).finally(()=>setLoading(false));},[]);
+ useEffect(()=>{
+  try{
+   const localFavs=localStorage.getItem(FAV_STORAGE_KEY);
+   if(localFavs){const parsed=JSON.parse(localFavs);if(Array.isArray(parsed))setWishlist(parsed.filter(id=>typeof id==='string'));}
+  }catch{}
+  try{const saved=parseDeliveryLocation(localStorage.getItem(locationStorageKey)),preferred=localStorage.getItem('bazar-area-rajshahi');if(saved){setArea(saved.area);setDeliveryAddress(saved.address);setLocationConfirmed(true);}else if(preferred&&areas.includes(preferred)){setArea(preferred);setLocationConfirmed(true);}else if(window.matchMedia('(max-width:740px)').matches&&!sessionStorage.getItem('bazar-location-prompt-rajshahi')){setModal('location');sessionStorage.setItem('bazar-location-prompt-rajshahi','1');}}catch{/* Shopping remains available if browser storage is disabled. */}
+  Promise.all([fetch('/api/catalog').then(async r=>{const d=(await r.json()) as ApiReply;if(!r.ok)throw new Error(d.error);setProducts(d.products);setBanners(d.banners);setCategorySettings(d.categorySettings);setCatalogOnline(true);}).catch(()=>setCatalogOnline(false)),fetch('/api/cart').then(async r=>{const d=(await r.json()) as ApiReply;if(r.ok){setCart(d.items);setSigned(true);await refreshAccount();}else if(r.status!==401)setError(d.error);}).catch(()=>setError('কার্ট লোড করা যায়নি। পেজ রিফ্রেশ করে আবার চেষ্টা করুন।'))]).finally(()=>setLoading(false));
+ },[]);
  useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(''),2800);return()=>clearTimeout(timer);},[toast]);
  const filter=(p:Product,c:string)=>c==='breakfast'?['dairy','bakery'].includes(p.category):c==='cooking'?['pantry','spices'].includes(p.category):c==='wishlist'?wishlist.includes(p.id):(c==='all'||c==='catalog')||(c==='popular'?!!p.popular:c==='care-deals'?['cleaning','personal','household'].includes(p.category):c==='deals'?p.originalPrice>p.price:c==='monthly'?['pantry','cleaning','dairy'].includes(p.category):inDepartment(p,c));
  const filtered=products.filter(p=>filter(p,category)&&`${p.name} ${p.bn} ${p.unit} ${categorySettings.items.find(c=>c.id===p.category)?.name||categories.find(c=>c.id===p.category)?.name||''}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>sort==='low'?a.price-b.price:sort==='high'?b.price-a.price:0);
  const showBrowse=category==='all'&&!search;
- function chooseCategory(id:string){setCategory(id);setSearch('');setMenu(false);if(window.matchMedia('(max-width:740px)').matches)window.scrollTo({top:0,behavior:'smooth'});}
+ function chooseCategory(id:string){setCategory(id);setSearch('');setMenu(false);setUserMenuOpen(false);if(window.matchMedia('(max-width:740px)').matches)window.scrollTo({top:0,behavior:'smooth'});}
  function confirmLocation(location:DeliveryLocation){setArea(location.area);setDeliveryAddress(location.address);setLocationConfirmed(true);try{localStorage.setItem('bazar-area-rajshahi',location.area);localStorage.setItem(locationStorageKey,JSON.stringify(location));}catch{setToast(tr('ঠিকানা এই পেজে রাখা হয়েছে। ব্রাউজারে সংরক্ষণ করা যায়নি।','Location is set for this page; browser storage is unavailable.'));setModal(null);return;}setModal(null);setToast(tr('ডেলিভারি ঠিকানা আপডেট হয়েছে','Delivery location updated'));}
  function setQuantity(p:Product,quantity:number){if(loading||busy||collectionBusy)return;if(!signed){setModal('signin');return;}if(!catalogOnline){setError('স্টোর সংযোগ পাওয়া যাচ্ছে না। একটু পরে চেষ্টা করুন।');return;}if(quantity<0||quantity>Math.min(20,p.stock))return;
  setSaving(true);setError('');mutation.current=mutation.current.then(async()=>{const r=await fetch('/api/cart',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:p.id,quantity})});const d=(await r.json()) as ApiReply;if(!r.ok)throw new Error(d.error);setCart(d.items);}).catch(e=>setError(e.message||'কার্ট আপডেট করা যায়নি।')).finally(()=>setSaving(false));
  }
  function add(p:Product){setQuantity(p,(cart[p.id]||0)+1);}
  function applyCoupon(){const code=couponInput.trim().toUpperCase();if(code!=='BAZAR10'){setCouponError(tr('কুপনটি সঠিক নয়। BAZAR10 ব্যবহার করুন।','Use the code BAZAR10.'));return;}if(quote.subtotal<500){setCouponError(tr('এই কুপনের জন্য কমপক্ষে ৳৫০০-এর বাজার লাগবে।','Spend at least ৳500 to use this coupon.'));return;}setCoupon(code);setCouponError('');setToast(tr('কুপন যোগ হয়েছে','Coupon applied'));}
- async function favorite(p:Product){if(!signed){setModal('signin');return;}if(wishBusy)return;setWishBusy(p.id);setError('');try{const saved=!wishlist.includes(p.id),r=await fetch('/api/account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'wishlist',productId:p.id,saved})}),d=(await r.json()) as ApiReply;if(!r.ok)throw new Error(d.error);setWishlist(w=>saved?[...new Set([...w,p.id])]:w.filter(id=>id!==p.id));}catch(e){setError(e instanceof Error?e.message:'পণ্য সংরক্ষণ করা যায়নি।');}finally{setWishBusy('');}}
- async function removeUnavailable(id:string){setWishBusy(id);setError('');try{const r=await fetch('/api/account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'wishlist',productId:id,saved:false})}),d=(await r.json()) as ApiReply;if(!r.ok)throw new Error(d.error);setWishlist(w=>w.filter(x=>x!==id));}catch(e){setError(e instanceof Error?e.message:'পণ্য সরানো যায়নি।');}finally{setWishBusy('');}}
+ async function favorite(p:Product){
+  if(wishBusy)return;
+  const saved=!wishlist.includes(p.id);
+  const nextList=saved?[...new Set([...wishlist,p.id])]:wishlist.filter(id=>id!==p.id);
+  setWishlist(nextList);
+  try{localStorage.setItem(FAV_STORAGE_KEY,JSON.stringify(nextList));}catch{}
+  setToast(saved?tr('পছন্দের তালিকায় যোগ হয়েছে','Added to My Favourites'):tr('পছন্দের তালিকা থেকে সরানো হয়েছে','Removed from My Favourites'));
+  if(!signed)return;
+  setWishBusy(p.id);setError('');
+  try{
+   const r=await fetch('/api/account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'wishlist',productId:p.id,saved})}),d=(await r.json()) as ApiReply;
+   if(!r.ok)throw new Error(d.error);
+  }catch(e){
+   setError(e instanceof Error?e.message:'পণ্য সংরক্ষণ করা যায়নি।');
+  }finally{setWishBusy('');}
+ }
+ async function removeUnavailable(id:string){
+  const nextList=wishlist.filter(x=>x!==id);
+  setWishlist(nextList);
+  try{localStorage.setItem(FAV_STORAGE_KEY,JSON.stringify(nextList));}catch{}
+  if(!signed)return;
+  setWishBusy(id);setError('');
+  try{const r=await fetch('/api/account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'wishlist',productId:id,saved:false})}),d=(await r.json()) as ApiReply;if(!r.ok)throw new Error(d.error);}catch(e){setError(e instanceof Error?e.message:'পণ্য সরানো যায়নি।');}finally{setWishBusy('');}
+ }
+ async function handleLogout(){
+  setUserMenuOpen(false);
+  try{
+   const r=await fetch('/api/auth/logout',{method:'POST'});
+   if(!r.ok)throw new Error();
+   setSigned(false);
+   setUserProfile(null);
+   setCart({});
+   setAddresses([]);
+   setToast(tr('লগআউট সম্পন্ন হয়েছে','Logged out successfully'));
+  }catch{
+   setError(tr('লগআউট করা যায়নি। আবার চেষ্টা করুন।','Could not log out. Please try again.'));
+  }
+ }
  async function addCollection(body:Record<string,unknown>){if(!signed){setModal('signin');return false;}if(collectionBusy||saving)return false;setCollectionBusy(true);setError('');try{await mutation.current;const signature=JSON.stringify(body);if(collectionRequest.current?.signature!==signature)collectionRequest.current={signature,id:crypto.randomUUID()};const r=await fetch('/api/cart',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,requestId:collectionRequest.current.id})}),d=(await r.json()) as ApiReply;if(!r.ok)throw new Error(d.error);collectionRequest.current=null;setCart(d.items);setCartReview(d.warnings||[]);const latest=await fetch('/api/catalog').catch(()=>null);if(latest?.ok)setProducts(((await latest.json()) as ApiReply).products);setModal(null);setMobileCart(true);return true;}catch(e){setError(e instanceof Error?e.message:'কার্টে যোগ করা যায়নি।');return false;}finally{setCollectionBusy(false);}}
  function openAddresses(){if(!signed){setModal('signin');return;}setModal('addresses');}
  async function openOrders(){setModal('orders');setOrderLoading(true);setOrderError('');try{const r=await fetch('/api/orders');const d=(await r.json()) as ApiReply;if(!r.ok){if(r.status===401){setModal('signin');return;}throw new Error(d.error);}setOrders(d.orders);}catch(e){setOrderError(e instanceof Error?e.message:'অর্ডার লোড করা যায়নি।');}finally{setOrderLoading(false);}}
@@ -74,6 +140,8 @@ export default function Storefront({initialBanners=defaultBanners,initialCategor
  return selection.length?<section className={'product-section home-shelf '+(theme?'banner-shelf '+theme+'-shelf':'')}>{theme&&<div className={'morning-banner collection-banner '+theme+'-banner'}><div><span className="morning-kicker">{kicker}</span><h2>{title}</h2><button onClick={onAll}>{tr('সব দেখুন','View all')}<ChevronRight size={17}/></button></div><div className="morning-art" aria-hidden="true">{config?.image?<img className="custom-banner-image" src={config.image} alt="" loading="lazy"/>:art.map(id=><img key={id} src={departments.find(d=>d.id===id)!.image} alt="" loading="lazy"/>)}</div></div>}<div className="section-head"><div><h2>{icon}{title}</h2>{subtitle&&<p>{subtitle}</p>}</div><button className="text-button" onClick={onAll}>{tr('সব দেখুন','View all')}<ChevronRight size={17}/></button></div><div className="product-row" role="region" aria-label={title} tabIndex={0}>{selection.slice(0,8).map(p=><Card key={p.id} p={p}/>)}</div></section>:null;
  }
 
+ const displayUserName=userProfile?.name?.trim().split(/\s+/)[0]||tr('অ্যাকাউন্ট','Account');
+
  const cartPanel=<>{cartReview!==null&&<div className="cart-review-notice" role="status">পণ্য বর্তমান মূল্যে কার্টে যোগ হয়েছে। চেকআউটের আগে পরিমাণ ও মোট মূল্য দেখুন।{cartReview.length>0&&<ul>{cartReview.map((w,i)=><li key={i}>{w}</li>)}</ul>}<button onClick={()=>setCartReview(null)}>বুঝেছি</button></div>}<div className="cart-title"><h2><ShoppingBasket size={21}/>{tr('আপনার বাজার','Your basket')}</h2><span>{lang==='bn'?bnNum(count):count}</span><button className="icon-button mobile-close" onClick={()=>setMobileCart(false)} aria-label="কার্ট বন্ধ করুন"><X/></button></div>
  <div className="cart-delivery"><Truck size={17}/><span>{tr('রাজশাহী শহরে ডেলিভারি','Delivery in Rajshahi city')}</span></div>
  {loading?<div className="empty-cart"><LoaderCircle className="spin"/><p>{tr('কার্ট লোড হচ্ছে…','Loading your basket…')}</p></div>:!items.length?<div className="empty-cart"><div className="basket-art"><ShoppingBasket size={58} strokeWidth={1.3}/><Leaf size={24}/></div><h3>{tr('বাজারের ব্যাগটা খালি!','Your basket is empty')}</h3><p>{tr('পছন্দের পণ্য যোগ করুন। আপনার বাজারের হিসাব এখানেই পাবেন।','Add something you love. Your grocery total will appear here.')}</p><span>{tr('চলুন, বাজার শুরু করি','Let’s get shopping')}</span></div>:<><div className="cart-items">{items.map(p=><div className="cart-item" key={p.id}><ProductImage p={p}/><div><strong>{tr(p.bn,p.name)}</strong><small>{p.unit}</small><div className="quantity"><button aria-label={'Remove '+p.name} disabled={saving} onClick={()=>setQuantity(p,p.quantity-1)}><Minus size={14}/></button><span>{lang==='bn'?bnNum(p.quantity):p.quantity}</span><button aria-label={'Increase '+p.name} disabled={saving||p.quantity>=Math.min(20,p.stock)} onClick={()=>add(p)}><Plus size={14}/></button></div></div><b>{money(p.price*p.quantity)}</b></div>)}</div>
@@ -82,21 +150,166 @@ export default function Storefront({initialBanners=defaultBanners,initialCategor
  <div className="cart-totals"><p><span>{tr('সাবটোটাল','Subtotal')}</span><span>{money(quote.subtotal)}</span></p><p><span>{tr('ডেলিভারি','Delivery')}</span><span>{quote.delivery?money(quote.delivery):tr('ফ্রি','Free')}</span></p>{quote.discount>0&&<p className="savings"><span>{tr('কুপন ছাড়','Discount')}</span><span>−{money(quote.discount)}</span></p>}<p className="total"><strong>{tr('সর্বমোট','Total')}</strong><strong>{money(quote.total)}</strong></p></div></>}
  {error&&<p role="alert" className="field-error">{error}</p>}<button className="primary checkout-button" disabled={quote.subtotal<100||loading||saving||busy||collectionBusy} onClick={beginCheckout}>{saving?<LoaderCircle size={18} className="spin"/>:null}{tr('চেকআউট করুন','Go to checkout')}{items.length>0&&<span>{money(quote.total)}</span>}</button><p className="cart-foot"><ShieldCheck size={13}/>{items.length&&quote.subtotal<100?tr('কমপক্ষে ৳১০০-এর পণ্য যোগ করুন','Minimum order ৳100'):tr('ক্যাশ অন ডেলিভারি · সর্বনিম্ন ৳১০০','Cash on delivery · Minimum ৳100')}</p></>;
  return <><div className="announcement"><span><Truck size={14}/>{tr('৳৯৯৯-এর বাজারে ডেলিভারি একদম ফ্রি','Free delivery on groceries over ৳999')}</span><button onClick={()=>{setInfo('offers');setModal('info');}}>BAZAR10 <span>{tr('দিয়ে ১০% ছাড়','for 10% off')}</span><ChevronRight size={14}/></button></div>
- <header className="header"><div className="header-inner"><button className="brand" onClick={()=>chooseCategory('all')}><span className="brand-mark"><ShoppingBasket size={28} strokeWidth={1.8}/></span><span>মাসের বাজার<small>আপনার বাজার, আমাদের দায়িত্ব</small></span></button><button className="location-button" onClick={()=>setModal('location')}><MapPin size={21}/><span><small>{tr('ডেলিভারি ঠিকানা','Deliver to')}</small><b>{area}, {tr('রাজশাহী','Rajshahi')}</b></span><ChevronDown size={17}/></button><nav><div className="mobile-nav-actions"><button aria-label="শপের তথ্য" onClick={()=>{setInfo('store');setModal('info');}}><Info size={21}/></button><button aria-label="পছন্দের পণ্য" onClick={()=>{if(!signed)setModal('signin');else chooseCategory('wishlist');}}><Heart size={23}/></button><button aria-label="সার্চ খুলুন" aria-expanded={mobileSearch} onClick={()=>setMobileSearch(v=>!v)}><Search size={23}/></button></div><a className="account-button" href="/login"><UserRound size={19}/><span>{signed?tr("আমার অ্যাকাউন্ট","My account"):tr("লগইন / সাইন আপ","Log in / Sign up")}</span></a>{signed&&<button className="account-button" onClick={openOrders}><UserRound size={19}/><span>{tr('আমার অর্ডার','My orders')}</span></button>}<button className="language" onClick={()=>setLang(lang==='bn'?'en':'bn')} aria-label="Change language"><Globe size={18}/>{lang==='bn'?'BN':'EN'}</button><button className="header-cart" onClick={()=>setMobileCart(true)} aria-label="Open cart"><ShoppingBag size={21}/>{count>0&&<b>{count}</b>}</button></nav></div></header><button className="mobile-location-bar" onClick={()=>setModal('location')}><MapPin size={18}/><span><small>{tr('ডেলিভারি ঠিকানা','Deliver to')}</small><b>{locationConfirmed?(deliveryAddress||area)+', '+tr('রাজশাহী','Rajshahi'):tr('আপনার অবস্থান বা ঠিকানা দিন','Set your location or address')}</b></span><ChevronDown size={17}/></button>
+ <header className="header"><div className="header-inner"><button className="brand" onClick={()=>chooseCategory('all')}><span className="brand-mark"><ShoppingBasket size={28} strokeWidth={1.8}/></span><span>মাসের বাজার<small>আপনার বাজার, আমাদের দায়িত্ব</small></span></button><button className="location-button" onClick={()=>setModal('location')}><MapPin size={21}/><span><small>{tr('ডেলিভারি ঠিকানা','Deliver to')}</small><b>{area}, {tr('রাজশাহী','Rajshahi')}</b></span><ChevronDown size={17}/></button><nav>
+  <div className="mobile-nav-actions">
+   <button aria-label="শপের তথ্য" onClick={()=>{setInfo('store');setModal('info');}}><Info size={21}/></button>
+   <button className={'mobile-heart-btn '+(category==='wishlist'||wishlist.length>0?'active':'')} aria-label={tr('পছন্দের তালিকা','My Favourites')} onClick={()=>chooseCategory('wishlist')}><Heart size={22}/>{wishlist.length>0&&<b>{lang==='bn'?bnNum(wishlist.length):wishlist.length}</b>}</button>
+   <button aria-label="সার্চ খুলুন" aria-expanded={mobileSearch} onClick={()=>setMobileSearch(v=>!v)}><Search size={23}/></button>
+  </div>
+  <div className="account-menu-wrap" ref={userMenuRef}>
+   {signed?(
+    <button
+     type="button"
+     className={'account-dropdown-trigger '+(userMenuOpen?'open':'')}
+     aria-expanded={userMenuOpen}
+     aria-haspopup="menu"
+     onClick={()=>setUserMenuOpen(v=>!v)}
+    >
+     <UserRound size={20}/>
+     <span>{displayUserName}</span>
+     {userMenuOpen?<ChevronUp size={17} className="pink-chevron"/>:<ChevronDown size={17} className="pink-chevron"/>}
+    </button>
+   ):(
+    <a className="account-button" href="/login">
+     <UserRound size={20}/>
+     <span>{tr('লগইন / সাইন আপ','Log in / Sign up')}</span>
+    </a>
+   )}
+   {signed&&userMenuOpen&&(
+    <div className="account-dropdown-menu" role="menu" aria-label={tr('অ্যাকাউন্ট মেনু','Account menu')}>
+     <button type="button" role="menuitem" className="account-dropdown-item highlight" onClick={()=>{setUserMenuOpen(false);setInfo('offers');setModal('info');}}>
+      <Wallet size={21}/>
+      <span>{tr('মাসের বাজার পে','Masher Bazar Pay')}</span>
+     </button>
+     <button type="button" role="menuitem" className="account-dropdown-item" onClick={()=>chooseCategory('monthly')}>
+      <Crown size={21} className="pro-icon"/>
+      <span>{tr('মাসিক সাশ্রয়ী প্যাকেজ দেখুন','Try Monthly Pro Pack now')}</span>
+     </button>
+     <button type="button" role="menuitem" className="account-dropdown-item" onClick={()=>{setUserMenuOpen(false);openOrders();}}>
+      <ReceiptText size={21}/>
+      <span>{tr('অর্ডার ও পুনরায় অর্ডার','Orders & reordering')}</span>
+     </button>
+     <a role="menuitem" className="account-dropdown-item" href="/login" onClick={()=>setUserMenuOpen(false)}>
+      <UserRound size={21}/>
+      <span>{tr('প্রোফাইল','Profile')}</span>
+     </a>
+     <button type="button" role="menuitem" className="account-dropdown-item" onClick={()=>{setUserMenuOpen(false);setInfo('offers');setModal('info');}}>
+      <Ticket size={21}/>
+      <span>{tr('ভাউচার','Vouchers')}</span>
+     </button>
+     <button type="button" role="menuitem" className="account-dropdown-item" onClick={()=>{setUserMenuOpen(false);openAddresses();}}>
+      <Trophy size={21}/>
+      <span>{tr('সংরক্ষিত ঠিকানা ও রিওয়ার্ডস','Saved addresses & rewards')}</span>
+     </button>
+     <hr className="account-dropdown-divider"/>
+     <button type="button" role="menuitem" className="account-dropdown-item" onClick={()=>{setUserMenuOpen(false);setInfo('store');setModal('info');}}>
+      <CircleHelp size={21}/>
+      <span>{tr('সহায়তা কেন্দ্র','Help Center')}</span>
+     </button>
+     <button type="button" role="menuitem" className="account-dropdown-item" onClick={handleLogout}>
+      <LogOut size={21}/>
+      <span>{tr('লগআউট','Logout')}</span>
+     </button>
+    </div>
+   )}
+  </div>
+  <button className="language" onClick={()=>setLang(lang==='bn'?'en':'bn')} aria-label="Change language"><Globe size={19}/><span>{lang==='bn'?'BN':'EN'}</span><ChevronDown size={15} className="pink-chevron"/></button>
+  <button
+   type="button"
+   className={'header-fav-button '+(category==='wishlist'?'active':'')+(wishlist.length>0?' has-items':'')}
+   onClick={()=>chooseCategory('wishlist')}
+   aria-label={tr('আমার পছন্দের তালিকা','My Favourites')}
+   title={tr('আমার পছন্দের তালিকা','My Favourites')}
+  >
+   <Heart size={21}/>
+   {wishlist.length>0&&<b>{lang==='bn'?bnNum(wishlist.length):wishlist.length}</b>}
+  </button>
+  <button className="header-cart" onClick={()=>setMobileCart(true)} aria-label="Open cart"><ShoppingBag size={21}/>{count>0&&<b>{count}</b>}</button>
+ </nav></div></header><button className="mobile-location-bar" onClick={()=>setModal('location')}><MapPin size={18}/><span><small>{tr('ডেলিভারি ঠিকানা','Deliver to')}</small><b>{locationConfirmed?(deliveryAddress||area)+', '+tr('রাজশাহী','Rajshahi'):tr('আপনার অবস্থান বা ঠিকানা দিন','Set your location or address')}</b></span><ChevronDown size={17}/></button>
  <div className="store-intro"><div className="store-icon"><ShoppingBasket size={36}/></div><div><div className="eyebrow">YOUR NEIGHBOURHOOD GROCERY</div><h1>মাসের বাজার <span>{tr('(রাজশাহী)','(Rajshahi)')}</span></h1><div className="store-meta"><span><MapPin size={15}/>{tr('রাজশাহী শহর','Rajshahi city')}</span><span><ShoppingBag size={15}/>{tr('সর্বনিম্ন ৳১০০','Minimum ৳100')}</span><button onClick={()=>{setInfo('store');setModal('info');}}><Info size={15}/>{tr('শপের তথ্য','Store information')}</button></div></div><button className="shopping-list" onClick={()=>setModal('list')}><ClipboardList size={19}/>{tr('লিস্ট দিয়ে বাজার করুন','Shop with a list')}</button></div>
- <nav className="shopping-tools" aria-label="আমার বাজারের সুবিধা"><button className={category==='monthly'?'active':''} onClick={()=>chooseCategory('monthly')}><Package size={18}/> মাসিক প্যাকেজ</button><button className={category==='wishlist'?'active':''} onClick={()=>{if(!signed)setModal('signin');else chooseCategory('wishlist');}}><Heart size={18}/> পছন্দের পণ্য {wishlist.length>0&&<span>({wishlist.length})</span>}</button><button onClick={openAddresses}><MapPin size={18}/> সংরক্ষিত ঠিকানা</button>{signed&&<button onClick={openOrders}><ShoppingBasket size={18}/> আবার কিনুন</button>}</nav>
+ <nav className="shopping-tools" aria-label="আমার বাজারের সুবিধা"><button className={category==='monthly'?'active':''} onClick={()=>chooseCategory('monthly')}><Package size={18}/> {tr('মাসিক প্যাকেজ','Monthly packages')}</button><button className={category==='wishlist'?'active':''} onClick={()=>chooseCategory('wishlist')}><Heart size={18}/> {tr('পছন্দের পণ্য','My Favourites')} {wishlist.length>0&&<span>({lang==='bn'?bnNum(wishlist.length):wishlist.length})</span>}</button><button onClick={openAddresses}><MapPin size={18}/> {tr('সংরক্ষিত ঠিকানা','Saved addresses')}</button>{signed&&<button onClick={openOrders}><ShoppingBasket size={18}/> {tr('আবার কিনুন','Reorder')}</button>}</nav>
  <div className="store-layout"><aside className={'category-sidebar '+(menu?'menu-open':'')}><div className="sidebar-head"><h2>{tr('ক্যাটেগরি','Categories')}</h2><button className="icon-button mobile-close" onClick={()=>setMenu(false)} aria-label="মেনু বন্ধ করুন"><X/></button></div>{[...categories.slice(0,3),...categorySettings.items.filter(c=>c.active).map(c=>({...c,icon:departments.find(d=>d.id===c.id)?.icon||'basket'}))].map(c=>{const Icon=iconMap[c.icon]||ShoppingBasket;return <button key={c.id} className={category===c.id?'active':''} onClick={()=>chooseCategory(c.id)}><Icon size={19}/><span>{tr(c.name,c.en)}</span><ChevronRight size={15}/></button>;})}<div className="sidebar-help"><ShieldCheck size={26}/><strong>{tr('নিশ্চিন্তে বাজার করুন','Shop with confidence')}</strong><p>{tr('পণ্য হাতে পেয়ে মূল্য পরিশোধ করুন।','Pay when you receive your groceries.')}</p></div></aside>
- <main className="catalog-main"><div className={'search-row '+(mobileSearch?'mobile-search-open':'')}><button className="category-toggle icon-button" onClick={()=>setMenu(true)} aria-label="ক্যাটেগরি খুলুন"><Menu/></button><div className="search-box"><Search size={21}/><input ref={searchInput} aria-label="পণ্য খুঁজুন" placeholder={tr('আপনার প্রয়োজনীয় পণ্য খুঁজুন…','Search for groceries and essentials…')} value={search} onChange={e=>setSearch(e.target.value)}/>{search&&<button aria-label="সার্চ মুছুন" onClick={()=>setSearch('')}><X size={18}/></button>}</div></div>
+ <main className="catalog-main"><div className={'search-row '+(mobileSearch?'mobile-search-open':'')}><button className="category-toggle icon-button" onClick={()=>setMenu(true)} aria-label="ক্যাটেগরি খুলুন"><Menu/></button><div className="search-box"><Search size={21}/><input ref={searchInput} aria-label="পণ্য খুঁজুন" placeholder={tr('আপনার প্রয়োজনীয় পণ্য খুঁজুন…','Search products')} value={search} onChange={e=>setSearch(e.target.value)}/>{search&&<button aria-label="সার্চ মুছুন" onClick={()=>setSearch('')}><X size={18}/></button>}</div></div>
  {error&&!modal&&<p className="field-error" role="alert">{error}</p>}
  {!catalogOnline&&!loading&&<p className="service-notice" role="status">{tr('ক্যাটালগের নমুনা দেখা যাচ্ছে। সংযোগ ফিরে এলে কার্ট ব্যবহার করতে পারবেন।','Showing the sample catalog. Shopping resumes when the connection is restored.')}</p>}
  {category==='monthly'&&!search&&<BundlePanel products={products} cart={cart} busy={saving||collectionBusy||loading} onAdd={(bundleId,items)=>addCollection({type:'bundle',bundleId,items})}/>}
  {showBrowse?<>{banners.some(b=>b.active&&b.placement==='hero')&&<><div className="offer-banners" ref={bannerTrack} onScroll={e=>{const el=e.currentTarget;setBannerIndex(Math.round(el.scrollLeft/(el.clientWidth+10)));}}>{banners.filter(b=>b.active&&b.placement==='hero').map(b=><button key={b.id} className={'banner managed-hero '+b.theme+'-hero'} onClick={()=>chooseCategory(b.category)}><span className="banner-kicker">{tr(b.subtitle,b.subtitleEn)}</span><h2>{tr(b.title,b.en)}</h2><span className="banner-cta">{tr('বাজার করুন','Shop now')}<ChevronRight size={15}/></span>{b.image?<img className="hero-custom-image" src={b.image} alt=""/>:<div className="banner-products"><ProductImage p={products.find(p=>p.id==='oil')||catalog.find(p=>p.id==='oil')!}/><ProductImage p={products.find(p=>p.id==='milk')||catalog.find(p=>p.id==='milk')!}/></div>}</button>)}</div><div className="banner-pagination" aria-label="অফারের স্লাইড">{banners.filter(b=>b.active&&b.placement==='hero').map((b,i)=><button key={b.id} className={bannerIndex===i?'active':''} aria-label={tr(b.title,b.en)} aria-current={bannerIndex===i?'true':undefined} onClick={()=>bannerTrack.current?.scrollTo({left:i*(bannerTrack.current.clientWidth+10),behavior:'smooth'})}/>)}</div></>}
 
+ <section className="voucher-showcase" aria-label={tr('চেকআউটে ভাউচার ব্যবহার করুন','Apply a voucher at checkout')}>
+  <h2>{tr('চেকআউটে ভাউচার ব্যবহার করুন!','Apply a voucher at checkout!')}</h2>
+  <div className="voucher-cards">
+   <button
+    type="button"
+    className={'voucher-ticket '+(coupon==='BAZAR10'?'applied':'')}
+    onClick={()=>{
+     setCouponInput('BAZAR10');
+     if(quote.subtotal>=500){
+      setCoupon('BAZAR10');
+      setCouponError('');
+      setToast(tr('BAZAR10 ভাউচার কার্টে যোগ হয়েছে!','BAZAR10 voucher applied to cart!'));
+     }else{
+      setToast(tr('BAZAR10 কোড প্রস্তুত! ৳৫০০-এর বাজার করলে ১০% ছাড় পাবেন।','Code BAZAR10 ready! Spend ৳500+ for 10% off.'));
+     }
+    }}
+   >
+    <div className="voucher-top">
+     <span className="voucher-icon"><Ticket size={22}/></span>
+     <div className="voucher-main">
+      <strong>{tr('BAZAR10 : সকল গ্রাহকের জন্য ১০% ছাড়','BAZAR10 : 10% Off Grocery Orders')}</strong>
+      <div className="voucher-sub">
+       <span>{tr('সর্বোচ্চ ৳১০০','Tk 100')}</span>
+       <Info size={13} className="voucher-info-icon"/>
+       <em className="voucher-tag">{coupon==='BAZAR10'?tr('যুক্ত আছে','Applied'):tr('২টি বাকি','2 left')}</em>
+      </div>
+     </div>
+    </div>
+    <div className="voucher-divider"><i/><i/></div>
+    <div className="voucher-bottom">
+     <span>{tr('সর্বনিম্ন অর্ডার ৳৫০০ · চেকআউটে ব্যবহার করুন','Min. order Tk 500 · Use at checkout')}</span>
+    </div>
+   </button>
+  </div>
+ </section>
+
  <CategoryBrowser settings={categorySettings} lang={lang} onChoose={chooseCategory}/>
  {banners.filter(b=>b.active&&b.placement==='collection').map(b=><Section key={b.id} config={b} title={tr(b.title,b.en)} subtitle={tr(b.subtitle,b.subtitleEn)} selection={products.filter(p=>filter(p,b.category)&&(b.category!=='popular'||!['dairy','bakery'].includes(p.category))).sort((a,c)=>b.category==='popular'?Number(c.originalPrice===c.price)-Number(a.originalPrice===a.price):0)} onAll={()=>chooseCategory(b.category)}/>)}
  {categorySettings.items.filter(c=>c.active&&!banners.some(b=>b.active&&b.placement==='collection'&&b.category===c.id)).map(c=><Section key={'cat-'+c.id} title={tr(c.name,c.en)} selection={products.filter(p=>filter(p,c.id))} onAll={()=>chooseCategory(c.id)}/>)}
  <button className="outline browse-catalog" onClick={()=>chooseCategory('catalog')}>{tr('সব পণ্য দেখুন','Browse all products')}<ChevronRight size={18}/></button>
- </>:<section className="product-section"><div className="section-head results-heading"><div><button className="back-button" onClick={()=>chooseCategory('all')}><ArrowLeft size={16}/>{tr('সব পণ্য','All products')}</button><h2>{search?tr('সার্চ ফলাফল','Search results'):category==='catalog'?tr('সব পণ্য','All products'):category==='breakfast'?tr('সকালের প্রয়োজনীয়','Morning essentials'):category==='cooking'?tr('প্রতিদিনের রান্না','Everyday cooking'):category==='wishlist'?tr('পছন্দের পণ্য','Wishlist'):category==='popular'?tr('সবার পছন্দ','Best sellers'):category==='care-deals'?tr('ঘরের যত্ন','Home care'):tr(categorySettings.items.find(c=>c.id===category)?.name||categories.find(c=>c.id===category)?.name||'',categorySettings.items.find(c=>c.id===category)?.en||categories.find(c=>c.id===category)?.en||'')}</h2><p>{lang==='bn'?bnNum(filtered.length):filtered.length} {tr('টি পণ্য','products')}{search&&' · “'+search+'”'}</p></div><label className="sort"><SlidersHorizontal size={16}/><select aria-label="পণ্য সাজান" value={sort} onChange={e=>setSort(e.target.value)}><option value="recommended">{tr('প্রস্তাবিত','Recommended')}</option><option value="low">{tr('দাম: কম থেকে বেশি','Price: low to high')}</option><option value="high">{tr('দাম: বেশি থেকে কম','Price: high to low')}</option></select></label></div>{filtered.length?<div className="products-grid">{filtered.map(p=><Card key={p.id} p={p}/>)}</div>:<div className="empty-results"><Search size={40}/><h3>{tr('পণ্য পাওয়া যায়নি','No products found')}</h3><p>{tr('অন্য নাম দিয়ে খুঁজুন অথবা সব পণ্য দেখুন।','Try another search or browse all groceries.')}</p><button className="outline" onClick={()=>chooseCategory('all')}>{tr('সব পণ্য দেখুন','Browse all products')}</button></div>}</section>}
+ </>:category==='wishlist'?(
+  <section className="product-section favourites-section">
+   <div className="favourites-banner">
+    <div className="favourites-banner-left">
+     <span className="favourites-heart-icon"><Heart size={26}/></span>
+     <div>
+      <button className="back-button" onClick={()=>chooseCategory('all')}><ArrowLeft size={15}/>{tr('স্টোরে ফিরে যান','Back to store')}</button>
+      <h2>{tr('আমার পছন্দের তালিকা','My Favourites')}</h2>
+      <p>{lang==='bn'?bnNum(filtered.length):filtered.length} {tr('টি সংরক্ষিত পণ্য','saved products')}</p>
+     </div>
+    </div>
+    {filtered.length>0&&(
+     <div className="favourites-banner-actions">
+      <label className="sort"><SlidersHorizontal size={16}/><select aria-label="পণ্য সাজান" value={sort} onChange={e=>setSort(e.target.value)}><option value="recommended">{tr('প্রস্তাবিত','Recommended')}</option><option value="low">{tr('দাম: কম থেকে বেশি','Price: low to high')}</option><option value="high">{tr('দাম: বেশি থেকে কম','Price: high to low')}</option></select></label>
+     </div>
+    )}
+   </div>
+   {filtered.length?(
+    <div className="products-grid">{filtered.map(p=><Card key={p.id} p={p}/>)}</div>
+   ):(
+    <div className="favourites-empty">
+     <div className="favourites-empty-card">
+      <span className="favourites-empty-icon"><Heart size={42}/></span>
+      <h3>{tr('আপনার পছন্দের তালিকায় এখনো কোনো পণ্য নেই','No favourites saved yet')}</h3>
+      <p>{tr('যেকোনো পণ্যের ওপর থাকা হার্ট (♥) আইকনে ক্লিক করে আপনার পছন্দের তালিকায় যোগ করুন, যাতে পরের বার দ্রুত খুঁজে পান।','Tap the heart icon on any product to save your favourite items here for quick and easy reordering.')}</p>
+      <button className="primary" onClick={()=>chooseCategory('all')}>{tr('পণ্য দেখুন','Explore products')}</button>
+     </div>
+     <div className="favourites-suggestions">
+      <h3>{tr('পছন্দের তালিকায় যোগ করার মতো জনপ্রিয় পণ্য','Popular items you might love')}</h3>
+      <div className="products-grid">{products.filter(p=>p.popular||p.originalPrice>p.price).slice(0,6).map(p=><Card key={p.id} p={p}/>)}</div>
+     </div>
+    </div>
+   )}
+  </section>
+ ):<section className="product-section"><div className="section-head results-heading"><div><button className="back-button" onClick={()=>chooseCategory('all')}><ArrowLeft size={16}/>{tr('সব পণ্য','All products')}</button><h2>{search?tr('সার্চ ফলাফল','Search results'):category==='catalog'?tr('সব পণ্য','All products'):category==='breakfast'?tr('সকালের প্রয়োজনীয়','Morning essentials'):category==='cooking'?tr('প্রতিদিনের রান্না','Everyday cooking'):category==='wishlist'?tr('আমার পছন্দের তালিকা','My Favourites'):category==='popular'?tr('সবার পছন্দ','Best sellers'):category==='care-deals'?tr('ঘরের যত্ন','Home care'):tr(categorySettings.items.find(c=>c.id===category)?.name||categories.find(c=>c.id===category)?.name||'',categorySettings.items.find(c=>c.id===category)?.en||categories.find(c=>c.id===category)?.en||'')}</h2><p>{lang==='bn'?bnNum(filtered.length):filtered.length} {tr('টি পণ্য','products')}{search&&' · “'+search+'”'}</p></div><label className="sort"><SlidersHorizontal size={16}/><select aria-label="পণ্য সাজান" value={sort} onChange={e=>setSort(e.target.value)}><option value="recommended">{tr('প্রস্তাবিত','Recommended')}</option><option value="low">{tr('দাম: কম থেকে বেশি','Price: low to high')}</option><option value="high">{tr('দাম: বেশি থেকে কম','Price: high to low')}</option></select></label></div>{filtered.length?<div className="products-grid">{filtered.map(p=><Card key={p.id} p={p}/>)}</div>:<div className="empty-results"><Search size={40}/><h3>{tr('পণ্য পাওয়া যায়নি','No products found')}</h3><p>{tr('অন্য নাম দিয়ে খুঁজুন অথবা সব পণ্য দেখুন।','Try another search or browse all groceries.')}</p><button className="outline" onClick={()=>chooseCategory('all')}>{tr('সব পণ্য দেখুন','Browse all products')}</button></div>}</section>}
  <footer className="footer"><div><ShoppingBasket size={22}/><strong>মাসের বাজার</strong><span>© {new Date().getFullYear()}</span></div><nav><button onClick={()=>{setInfo('delivery');setModal('info');}}>{tr('ডেলিভারি','Delivery')}</button><button onClick={()=>{setInfo('returns');setModal('info');}}>{tr('রিটার্ন','Returns')}</button><button onClick={()=>{setInfo('privacy');setModal('info');}}>{tr('গোপনীয়তা','Privacy')}</button><a href="/login">{tr('আমার অ্যাকাউন্ট','My account')}</a><a href="/admin">{tr('স্টোর পরিচালনা','Manage store')}</a></nav><p>{tr('প্রিভিউ স্টোর · অর্ডার পরীক্ষা করা যাবে, বাস্তব ডেলিভারি চালু হয়নি।','Preview store · Test orders are saved; real delivery is not active.')}</p></footer>
  </main><aside className={'cart-panel '+(mobileCart?'cart-open':'')}>{cartPanel}</aside></div>
  {mobileCart&&<button className="drawer-backdrop" onClick={()=>setMobileCart(false)} aria-label="Close cart"/>}{menu&&<button className="menu-backdrop" onClick={()=>setMenu(false)} aria-label="Close categories"/>}

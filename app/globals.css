@@ -116,3 +116,63 @@
  .pdp-mini-card{flex:0 0 124px}
 }
 
+/* Header Account Dropdown & Favourites Heart */
+.account-menu-wrap{position:relative;display:inline-flex;align-items:center}
+.account-dropdown-trigger{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;font-weight:700;font-size:15px;color:#29232a;transition:background .15s}
+.account-dropdown-trigger:hover,.account-dropdown-trigger.open{background:#f5f2f4}
+.account-dropdown-trigger span{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-chevron{color:var(--pink);transition:transform .2s ease}
+.account-chevron.open{transform:rotate(180deg)}
+.account-dropdown-menu{position:absolute;top:calc(100% + 10px);right:-12px;width:296px;background:#fff;border:1px solid #ece7ea;border-radius:16px;box-shadow:0 16px 42px rgba(25,18,24,.16);padding:10px 8px;z-index:120;display:flex;flex-direction:column;gap:2px;animation:accountMenuFade .16s ease-out}
+@keyframes accountMenuFade{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.account-dropdown-item{display:flex;align-items:center;gap:14px;width:100%;padding:12px 16px;border-radius:10px;font-size:15px;font-weight:600;color:#29232a;text-align:left;text-decoration:none;transition:background .14s,color .14s}
+.account-dropdown-item svg{color:#29232a;flex-shrink:0}
+.account-dropdown-item:hover{background:#f8f4f6;color:var(--pink)}
+.account-dropdown-item:hover svg{color:var(--pink)}
+.account-dropdown-divider{height:1px;background:#ece7ea;margin:6px 10px}
+
+.header-fav-button{position:relative;width:40px;height:40px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--pink);transition:background .15s,transform .15s}
+.header-fav-button:hover,.header-fav-button.active{background:#fff0f6;transform:scale(1.05)}
+.header-fav-badge{position:absolute;top:2px;right:1px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--pink);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:2px solid #fff;line-height:1}
+.mobile-heart-btn{position:relative;color:var(--pink)!important}
+.mobile-heart-btn.active{background:#fff0f6!important;border-color:#f5bfd6!important}
+
+/* Apply a Voucher at Checkout Section */
+.voucher-showcase{margin:14px 0 26px}
+.voucher-showcase h2{font-size:21px;font-weight:800;color:#211d22;margin-bottom:14px;letter-spacing:0}
+.voucher-ticket{display:inline-flex;align-items:center;gap:14px;min-width:265px;max-width:100%;padding:14px 18px;background:#fff;border:1px solid #e7e2e5;border-radius:12px;box-shadow:0 2px 8px rgba(25,18,24,.04);text-align:left;transition:border-color .16s,box-shadow .16s,transform .16s}
+.voucher-ticket:hover{border-color:#f0b6cf;box-shadow:0 8px 20px rgba(229,38,115,.1);transform:translateY(-1px)}
+.voucher-ticket-icon{width:38px;height:38px;border-radius:10px;background:#fff0f6;color:var(--pink);display:grid;place-items:center;flex-shrink:0}
+.voucher-ticket-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+.voucher-ticket-copy strong{font-size:15px;font-weight:800;color:#211d22;line-height:1.25}
+.voucher-ticket-copy span{font-size:13px;font-weight:600;color:#6e6870;line-height:1.3}
+
+/* My Favourites Section */
+.favourites-section{margin-top:8px}
+.favourites-banner{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 24px;margin-bottom:20px;border-radius:16px;background:linear-gradient(135deg,#fff2f7 0%,#fff9fb 100%);border:1px solid #f7d3e3}
+.favourites-banner-left{display:flex;align-items:center;gap:16px}
+.favourites-heart-circle{width:52px;height:52px;border-radius:16px;background:#fff;border:1px solid #f5c6db;color:var(--pink);display:grid;place-items:center;box-shadow:0 6px 16px rgba(229,38,115,.12);flex-shrink:0}
+.favourites-banner-left h1{font-size:24px;font-weight:800;color:#211d22;line-height:1.2;margin:0}
+.favourites-banner-left p{font-size:14px;color:#68616a;margin:4px 0 0}
+.favourites-banner-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fav-continue-btn{padding:10px 16px;border-radius:10px;background:#fff;border:1px solid #e4dce1;font-size:13px;font-weight:700;color:#29232a;transition:border-color .15s,color .15s}
+.fav-continue-btn:hover{border-color:var(--pink);color:var(--pink)}
+.fav-clear-btn{padding:10px 16px;border-radius:10px;background:var(--pink);color:#fff;font-size:13px;font-weight:700;transition:opacity .15s}
+.fav-clear-btn:hover{opacity:.92}
+
+.favourites-empty{background:#fff;border:1px dashed #e5dce1;border-radius:18px;padding:48px 24px;text-align:center;max-width:520px;margin:12px auto 32px;display:flex;flex-direction:column;align-items:center}
+.favourites-empty-icon{width:76px;height:76px;border-radius:50%;background:#fff2f7;color:var(--pink);display:grid;place-items:center;margin-bottom:16px}
+.favourites-empty h2{font-size:20px;font-weight:800;color:#211d22;margin-bottom:8px}
+.favourites-empty p{font-size:14px;line-height:1.6;color:#6d666f;max-width:38ch;margin-bottom:20px}
+.fav-explore-btn{padding:12px 24px;border-radius:10px;background:var(--pink);color:#fff;font-size:14px;font-weight:800;box-shadow:0 6px 18px rgba(229,38,115,.22);transition:transform .15s}
+.fav-explore-btn:hover{transform:translateY(-1px)}
+.favourites-suggestions{margin-top:28px}
+
+@media(max-width:740px){
+ .header nav>.account-menu-wrap,.header nav>.header-fav-button{display:none}
+ .voucher-showcase h2{font-size:18px}
+ .voucher-ticket{width:100%}
+ .favourites-banner{padding:16px}
+ .favourites-banner-left h1{font-size:20px}
+}
+

@@ -9,7 +9,7 @@ export async function GET(){try{
   db.prepare('SELECT id,label,name,phone,address,area,is_default FROM saved_addresses WHERE user_id=? ORDER BY is_default DESC,created_at DESC').bind(u.userId),
   db.prepare('SELECT product_id FROM wishlist WHERE user_id=? ORDER BY created_at DESC').bind(u.userId),
  ]);
- return Response.json({addresses:addresses.results,wishlist:wishes.results.map(w=>(w as {product_id:string}).product_id),deliveryChoices:deliveryChoices()},{headers:{'Cache-Control':'no-store'}});
+ return Response.json({user:{id:u.userId,name:u.fullName,email:u.email},addresses:addresses.results,wishlist:wishes.results.map(w=>(w as {product_id:string}).product_id),deliveryChoices:deliveryChoices()},{headers:{'Cache-Control':'no-store'}});
 }catch(e){return errorResponse(e);}}
 export async function POST(r:Request){try{
  sameOrigin(r);const u=await identity(),db=database(),raw=await r.text();if(raw.length>4000)return fail('তথ্য খুব বড়।');
