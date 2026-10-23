@@ -1,0 +1,14 @@
+.git
+.openai
+.sites-runtime
+.wrangler
+.vinext
+.local
+.env*
+outputs
+work
+build
+vendor
+examples
+scripts/verify-*.mjs
+tsconfig.tsbuildinfo

@@ -1,0 +1,21 @@
+import {database,identity,readCart,sameOrigin,errorResponse,products} from '@/lib/server';
+import {areas,totals} from '@/lib/catalog';
+import {deliveryChoices} from '@/lib/shopping';
+export const dynamic='force-dynamic';
+export async function GET(){try{const u=await identity();const r=await database().prepare('SELECT id,items,subtotal,discount,delivery,total,status,payment,created_at,area,delivery_date,delivery_slot FROM orders WHERE user_id=? ORDER BY created_at DESC LIMIT 50').bind(u.userId).all();return Response.json({orders:r.results.map(o=>({...o,items:JSON.parse(String(o.items))}))},{headers:{'Cache-Control':'no-store'}});}catch(e){return errorResponse(e);}}
+export async function POST(request:Request){try{
+ sameOrigin(request);const u=await identity(),b=(await request.json()) as {requestId:string;name?:string;phone?:string;address?:string;note?:string;area:string;payment:string;coupon?:string;deliveryDate?:string;deliverySlot?:string};if(typeof b.requestId!=='string'||!/^[a-f0-9-]{36}$/.test(b.requestId))return Response.json({error:'অর্ডার রেফারেন্স সঠিক নয়।'},{status:400});
+ const db=database(),existing=await db.prepare('SELECT id,total,status FROM orders WHERE user_id=? AND request_id=?').bind(u.userId,b.requestId).first();if(existing)return Response.json({order:existing});
+ const name=String(b.name||'').trim(),phone=String(b.phone||'').replace(/\s/g,''),address=String(b.address||'').trim(),note=String(b.note||'').trim();
+ if(name.length<2||name.length>100||!/^(?:\+?88)?01[3-9]\d{8}$/.test(phone)||address.length<8||address.length>400||!areas.includes(b.area)||note.length>500)return Response.json({error:'নাম, বাংলাদেশি মোবাইল নম্বর ও সম্পূর্ণ ঠিকানা সঠিকভাবে লিখুন।'},{status:400});
+ if(b.payment!=='cod')return Response.json({error:'অনলাইন পেমেন্ট এখনো চালু হয়নি। ক্যাশ অন ডেলিভারি নির্বাচন করুন।'},{status:400});
+ const deliveryDate=b.deliveryDate||null,deliverySlot=b.deliverySlot||null;
+ if((deliveryDate||deliverySlot)&&!deliveryChoices().some(d=>d.date===deliveryDate&&d.slots.some(s=>s.id===deliverySlot)))return Response.json({error:'ডেলিভারির সময়টি আর পাওয়া যাচ্ছে না। নতুন সময় নির্বাচন করুন।'},{status:400});
+ const map=await readCart(u.userId),list=await products(),items=list.filter(p=>map[p.id]>0).map(p=>({id:p.id,name:p.name,bn:p.bn,unit:p.unit,price:p.price,quantity:map[p.id],image:p.image})),q=totals(items,String(b.coupon||''));
+ if(!items.length||items.some(p=>!Number.isInteger(p.quantity)||p.quantity>20)||q.subtotal<100)return Response.json({error:'কমপক্ষে ৳১০০-এর পণ্য যোগ করুন।'},{status:400});
+ if(b.coupon&&(String(b.coupon).toUpperCase()!=='BAZAR10'||q.subtotal<500))return Response.json({error:'BAZAR10 ব্যবহার করতে কমপক্ষে ৳৫০০-এর পণ্য লাগবে।'},{status:400});
+ const id='MB-'+crypto.randomUUID().slice(0,8).toUpperCase(),conditions=items.map(()=>'(SELECT stock FROM products WHERE id=? AND active=1)>=?').join(' AND '),args=items.flatMap(p=>[p.id,p.quantity]);
+ const insert=db.prepare(`INSERT INTO orders (id,user_id,request_id,customer_name,phone,address,area,items,subtotal,discount,delivery,total,status,payment,note,stock_applied,created_at,delivery_date,delivery_slot) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,'received','cod',?,0,?,?,? WHERE ${conditions} ON CONFLICT(user_id,request_id) DO NOTHING`).bind(id,u.userId,b.requestId,name,phone,address,b.area,JSON.stringify(items),q.subtotal,q.discount,q.delivery,q.total,note,new Date().toISOString(),deliveryDate,deliverySlot,...args);
+ await db.batch([insert,...items.map(p=>db.prepare('UPDATE products SET stock=stock-? WHERE id=? AND EXISTS (SELECT 1 FROM orders WHERE id=? AND stock_applied=0)').bind(p.quantity,p.id,id)),db.prepare('UPDATE carts SET items=\'{}\' WHERE user_id=? AND EXISTS (SELECT 1 FROM orders WHERE id=? AND stock_applied=0)').bind(u.userId,id),db.prepare('UPDATE orders SET stock_applied=1 WHERE id=?').bind(id)]);
+ const order=await db.prepare('SELECT id,total,status FROM orders WHERE user_id=? AND request_id=?').bind(u.userId,b.requestId).first();if(!order)return Response.json({error:'কিছু পণ্যের স্টক শেষ হয়েছে। কার্ট আপডেট করে আবার চেষ্টা করুন।'},{status:409});return Response.json({order},{status:201});
+}catch(e){return errorResponse(e);}}
