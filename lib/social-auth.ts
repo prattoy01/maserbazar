@@ -1,27 +1,64 @@
 import 'server-only';
-import {createHmac} from 'node:crypto';
+import {createHmac,timingSafeEqual} from 'node:crypto';
 import {authDB,AuthError,createSession,normalizeEmail,randomToken,tokenHash,validEmail} from './customer-auth';
+import {expectedOrigin} from './request-origin';
 
 export type Provider='google'|'facebook';
-export function providerConfig(provider:Provider){
- const id=provider==='google'?process.env.GOOGLE_CLIENT_ID:process.env.FACEBOOK_APP_ID;
- const secret=provider==='google'?process.env.GOOGLE_CLIENT_SECRET:process.env.FACEBOOK_APP_SECRET;
- const origin=process.env.AUTH_ORIGIN;
+const LOCAL_ORIGINS=['http://127.0.0.1:5174','http://localhost:5174','http://127.0.0.1:3000','http://localhost:3000'];
+function cleanValue(raw:string|undefined){return raw?.trim().replace(/^['"]+|['"]+$/g,'').trim()||'';}
+export function normalizeOrigin(raw:string|undefined){
+ const cleaned=cleanValue(raw);if(!cleaned)return null;
+ try{
+  const url=new URL(cleaned.includes('://')?cleaned:'https://'+cleaned);
+  if(!LOCAL_ORIGINS.includes(url.origin)&&url.protocol!=='https:')return null;
+  return url.origin;
+ }catch{return null;}
+}
+export function providerConfig(provider:Provider,request?:Request){
+ const id=cleanValue(provider==='google'?process.env.GOOGLE_CLIENT_ID:process.env.FACEBOOK_APP_ID);
+ const secret=cleanValue(provider==='google'?process.env.GOOGLE_CLIENT_SECRET:process.env.FACEBOOK_APP_SECRET);
+ const origin=normalizeOrigin(process.env.AUTH_ORIGIN)||(request? normalizeOrigin(expectedOrigin(request)):null);
  if(!id||!secret||!origin)throw new AuthError('এই লগইন পদ্ধতি এখনো চালু হয়নি। ইমেইল দিয়ে লগইন করুন।',503);
- const url=new URL(origin);
- if(url.origin!==origin||(!['http://127.0.0.1:5174','http://localhost:5174','http://127.0.0.1:3000','http://localhost:3000'].includes(origin)&&url.protocol!=='https:'))throw new Error('Invalid AUTH_ORIGIN');
- const version=process.env.FACEBOOK_GRAPH_VERSION;
+ const version=cleanValue(process.env.FACEBOOK_GRAPH_VERSION);
  if(provider==='facebook'&&(!version||!/^v\d+\.\d+$/.test(version)))throw new Error('Configure FACEBOOK_GRAPH_VERSION');
  return {id,secret,origin,redirect:origin+'/api/auth/social/'+provider+'/callback',graph:'https://graph.facebook.com/'+version};
 }
-export function availableProviders(){return {google:!!(process.env.AUTH_ORIGIN&&process.env.GOOGLE_CLIENT_ID&&process.env.GOOGLE_CLIENT_SECRET),facebook:!!(process.env.AUTH_ORIGIN&&process.env.FACEBOOK_APP_ID&&process.env.FACEBOOK_APP_SECRET&&process.env.FACEBOOK_GRAPH_VERSION)};}
+export function availableProviders(){
+ const hasOrigin=!!normalizeOrigin(process.env.AUTH_ORIGIN)||!!process.env.VERCEL||process.env.NODE_ENV!=='production';
+ return {
+  google:!!(hasOrigin&&cleanValue(process.env.GOOGLE_CLIENT_ID)&&cleanValue(process.env.GOOGLE_CLIENT_SECRET)),
+  facebook:!!(hasOrigin&&cleanValue(process.env.FACEBOOK_APP_ID)&&cleanValue(process.env.FACEBOOK_APP_SECRET)&&cleanValue(process.env.FACEBOOK_GRAPH_VERSION)),
+ };
+}
+export function encodeOAuthState(rawState:string,targetOrigin:string,canonicalOrigin:string,secret:string){
+ if(targetOrigin===canonicalOrigin)return rawState;
+ const encodedOrigin=Buffer.from(targetOrigin,'utf8').toString('base64url');
+ const sig=createHmac('sha256',secret).update(`${rawState}.${ encodedOrigin}`).digest('base64url');
+ return `${rawState}.${encodedOrigin}.${sig}`;
+}
+export function decodeOAuthState(stateParam:string|null,canonicalOrigin:string,secret:string):{rawState:string;targetOrigin:string}|null{
+ if(!stateParam)return null;
+ if(/^[a-f0-9]{64}$/.test(stateParam))return {rawState:stateParam,targetOrigin:canonicalOrigin};
+ const parts=stateParam.split('.');
+ if(parts.length!==3)return null;
+ const [rawState,encodedOrigin,sig]=parts;
+ if(!/^[a-f0-9]{64}$/.test(rawState)||!encodedOrigin||!sig)return null;
+ const expectedSig=createHmac('sha256',secret).update(`${rawState}.${encodedOrigin}`).digest('base64url');
+ const a=Buffer.from(sig),b=Buffer.from(expectedSig);
+ if(a.length!==b.length||!timingSafeEqual(a,b))return null;
+ try{
+  const targetOrigin=normalizeOrigin(Buffer.from(encodedOrigin,'base64url').toString('utf8'));
+  if(!targetOrigin)return null;
+  return {rawState,targetOrigin};
+ }catch{return null;}
+}
 async function json(url:string,options:RequestInit={}){
  const r=await fetch(url,{...options,cache:'no-store',signal:AbortSignal.timeout(15000)});
  if(!r.ok)throw new Error('Provider request failed');
  return await r.json();
 }
-export async function providerIdentity(provider:Provider,code:string){
- const c=providerConfig(provider);
+export async function providerIdentity(provider:Provider,code:string,request?:Request){
+ const c=providerConfig(provider,request);
  const params=new URLSearchParams({client_id:c.id,client_secret:c.secret,redirect_uri:c.redirect,code,grant_type:'authorization_code'});
  const token=await json(provider==='google'?'https://oauth2.googleapis.com/token':c.graph+'/oauth/access_token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:params});
  if(typeof token.access_token!=='string')throw new Error('Missing access token');
@@ -49,8 +86,16 @@ export async function socialSession(provider:Provider,identity:{subject:unknown;
   const email=normalizeEmail(identity.email);
   if(!validEmail(email))throw new AuthError('ইমেইল পাওয়া যায়নি। ইমেইল দিয়ে অ্যাকাউন্ট খুলুন।',400);
   const existing=await db.prepare('SELECT id,password_hash FROM customers WHERE email=?').bind(email).first<{id:string;password_hash:string}>();
-  if(!linkId&&existing)throw new AuthError('এই ইমেইলে অ্যাকাউন্ট আছে। প্রথমে ইমেইল দিয়ে লগইন করে Google বা Facebook যুক্ত করুন।',409);
-  if(linkId){
+  if(!linkId&&existing){
+   if(provider==='google'){
+    const otherSubject=await db.prepare('SELECT subject FROM customer_identities WHERE provider=? AND customer_id=?').bind(provider,existing.id).first<{subject:string}>();
+    if(otherSubject&&otherSubject.subject!==identity.subject)throw new AuthError('এই ইমেইলে অ্যাকাউন্ট আছে। প্রথমে ইমেইল দিয়ে লগইন করে Google বা Facebook যুক্ত করুন।',409);
+    await db.prepare('INSERT OR IGNORE INTO customer_identities (provider,subject,customer_id) VALUES (?,?,?)').bind(provider,identity.subject,existing.id).run();
+    row=existing;
+   }else{
+    throw new AuthError('এই ইমেইলে অ্যাকাউন্ট আছে। প্রথমে ইমেইল দিয়ে লগইন করে Google বা Facebook যুক্ত করুন।',409);
+   }
+  }else if(linkId){
    row=await db.prepare('SELECT id,password_hash FROM customers WHERE id=?').bind(linkId).first<{id:string;password_hash:string}>();
    if(!row)throw new Error('Account no longer exists');
    await db.prepare('INSERT INTO customer_identities (provider,subject,customer_id) VALUES (?,?,?)').bind(provider,identity.subject,row.id).run();

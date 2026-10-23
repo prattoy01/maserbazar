@@ -14,8 +14,7 @@ function reply<T>(result:ResultSet):Reply<T>{
 }
 
 let migrationPromise:Promise<void>|null=null;
-async function ensureMigrated(client:Client,isLocalFile:boolean){
- if(!isLocalFile)return;
+async function ensureMigrated(client:Client){
  if(!migrationPromise){
   migrationPromise=(async()=>{
    await client.execute('CREATE TABLE IF NOT EXISTS _vercel_migrations (name TEXT PRIMARY KEY, hash TEXT NOT NULL, applied_at TEXT NOT NULL)');
@@ -26,7 +25,13 @@ async function ensureMigrated(client:Client,isLocalFile:boolean){
     const previous=await client.execute({sql:'SELECT hash FROM _vercel_migrations WHERE name=?',args:[name]});
     if(previous.rows.length)continue;
     const statements=sql.split('--> statement-breakpoint').map(s=>s.trim()).filter(Boolean);
-    await client.batch([...statements,{sql:'INSERT INTO _vercel_migrations (name,hash,applied_at) VALUES (?,?,?)',args:[name,hash,new Date().toISOString()]}],'write');
+    for(const stmt of statements){
+     try{await client.execute(stmt);}catch(e){
+      const msg=e instanceof Error?e.message:'';
+      if(!/already exists|duplicate column/i.test(msg))throw e;
+     }
+    }
+    await client.execute({sql:'INSERT OR IGNORE INTO _vercel_migrations (name,hash,applied_at) VALUES (?,?,?)',args:[name,hash,new Date().toISOString()]});
    }
   })().catch(err=>{
    migrationPromise=null;
@@ -37,21 +42,21 @@ async function ensureMigrated(client:Client,isLocalFile:boolean){
 }
 
 class Prepared {
- constructor(readonly client:Client,readonly isLocalFile:boolean,readonly sql:string,readonly args:InValue[]=[]){}
- bind(...args:InValue[]){return new Prepared(this.client,this.isLocalFile,this.sql,args);}
+ constructor(readonly client:Client,readonly sql:string,readonly args:InValue[]=[]){}
+ bind(...args:InValue[]){return new Prepared(this.client,this.sql,args);}
  statement():InStatement{return {sql:this.sql,args:this.args};}
  async all<T=Row>(){
-  await ensureMigrated(this.client,this.isLocalFile);
+  await ensureMigrated(this.client);
   return reply<T>(await this.client.execute(this.statement()));
  }
  async first<T=Row>():Promise<T|null>{return (await this.all<T>()).results[0]??null;}
  async run(){return this.all();}
 }
 class Database {
- constructor(readonly client:Client,readonly isLocalFile:boolean){}
- prepare(sql:string){return new Prepared(this.client,this.isLocalFile,sql);}
+ constructor(readonly client:Client){}
+ prepare(sql:string){return new Prepared(this.client,sql);}
  async batch<T=Row>(statements:Prepared[]):Promise<Reply<T>[]>{
-  await ensureMigrated(this.client,this.isLocalFile);
+  await ensureMigrated(this.client);
   const results=await this.client.batch(statements.map(s=>s.statement()),'write');
   return results.map(result=>reply<T>(result));
  }
@@ -65,7 +70,7 @@ export function database(){
   const isLocalFile=url.startsWith('file:');
   if(isLocalFile)mkdirSync('.local',{recursive:true});
   const connect=isLocalFile?createClient:createRemoteClient;
-  cached={url,token,db:new Database(connect({url,authToken:token,intMode:'number'}),isLocalFile)};
+  cached={url,token,db:new Database(connect({url,authToken:token,intMode:'number'}))};
  }
  return cached.db;
 }
