@@ -9,7 +9,7 @@ export function providerConfig(provider:Provider){
  const origin=process.env.AUTH_ORIGIN;
  if(!id||!secret||!origin)throw new AuthError('এই লগইন পদ্ধতি এখনো চালু হয়নি। ইমেইল দিয়ে লগইন করুন।',503);
  const url=new URL(origin);
- if(url.origin!==origin||(!['http://127.0.0.1:5174','http://localhost:5174'].includes(origin)&&url.protocol!=='https:'))throw new Error('Invalid AUTH_ORIGIN');
+ if(url.origin!==origin||(!['http://127.0.0.1:5174','http://localhost:5174','http://127.0.0.1:3000','http://localhost:3000'].includes(origin)&&url.protocol!=='https:'))throw new Error('Invalid AUTH_ORIGIN');
  const version=process.env.FACEBOOK_GRAPH_VERSION;
  if(provider==='facebook'&&(!version||!/^v\d+\.\d+$/.test(version)))throw new Error('Configure FACEBOOK_GRAPH_VERSION');
  return {id,secret,origin,redirect:origin+'/api/auth/social/'+provider+'/callback',graph:'https://graph.facebook.com/'+version};

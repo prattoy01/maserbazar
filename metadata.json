@@ -1,0 +1,7 @@
+{
+  "name": "মাসের বাজার (Masher Bazar)",
+  "description": "রাজশাহীর অনলাইন গ্রোসারি স্টোর। দৈনন্দিন বাজার, তাজা খাবার ও প্রয়োজনীয় পণ্য এক জায়গায়।",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
