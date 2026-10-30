@@ -26,9 +26,28 @@ export async function POST(r:Request){try{
   return Response.json({ok:true,id:productId},{status:create?201:200});
  }
  if(b.type==='product'&&typeof b.id==='string'&&Number.isInteger(b.price)&&Number(b.price)>0&&Number(b.price)<100000&&Number.isInteger(b.stock)&&Number(b.stock)>=0&&Number(b.stock)<100000){const result=await db.prepare('UPDATE products SET price=?,stock=? WHERE id=?').bind(Number(b.price),Number(b.stock),b.id).run();if(!result.meta.changes)return fail('পণ্যটি পাওয়া যায়নি।',404);return Response.json({ok:true});}
+ if(b.type==='category_offer'){
+  const cat=typeof b.category==='string'?b.category.trim():'',mode=b.mode,val=typeof b.value==='number'?b.value:Number(b.value);
+  const catSettings=(await readCategorySettings()).settings;
+  if(cat!=='all'&&!catSettings.items.some(c=>c.id===cat)&&!categories.slice(3).some(c=>c.id===cat))return fail('একটি সঠিক ক্যাটেগরি নির্বাচন করুন।');
+  if(mode!=='percent'&&mode!=='flat'&&mode!=='clear')return fail('অফারের ধরন নির্বাচন করুন।');
+  if(mode==='percent'&&(!Number.isFinite(val)||val<1||val>90))return fail('ছাড়ের হার ১% থেকে ৯০%-এর মধ্যে হতে হবে।');
+  if(mode==='flat'&&(!Number.isFinite(val)||val<1||val>50000))return fail('ছাড়ের পরিমাণ ১ থেকে ৫০০০০ টাকার মধ্যে হতে হবে।');
+  await products(true);
+  const rows=cat==='all'?await db.prepare('SELECT id,price,original_price FROM products').all<{id:string;price:number;original_price:number}>():await db.prepare('SELECT id,price,original_price FROM products WHERE category=?').bind(cat).all<{id:string;price:number;original_price:number}>();
+  if(!rows.results.length)return fail('এই ক্যাটেগরিতে কোনো পণ্য নেই।',404);
+  const stmts=rows.results.map(row=>{
+   const base=Math.max(row.price,row.original_price);
+   const nextPrice=mode==='clear'?base:mode==='percent'?Math.max(1,Math.round(base*(100-val)/100)):Math.max(1,Math.round(base-val));
+   return db.prepare('UPDATE products SET price=?,original_price=? WHERE id=?').bind(nextPrice,base,row.id);
+  });
+  await db.batch(stmts);
+  return Response.json({ok:true,updated:rows.results.length});
+ }
  if(b.type==='order'&&typeof b.id==='string'&&typeof b.status==='string'){
   const row=await db.prepare('SELECT status FROM orders WHERE id=?').bind(b.id).first<{status:string}>(),steps=['received','confirmed','packing','out_for_delivery','delivered'];if(!row||steps.indexOf(b.status)!==steps.indexOf(row.status)+1)return fail('অর্ডারের পরবর্তী ধাপ নির্বাচন করুন।');
   const result=await db.prepare('UPDATE orders SET status=? WHERE id=? AND status=?').bind(b.status,b.id,row.status).run();if(result.meta.changes!==1)return fail('অর্ডারটি পরিবর্তিত হয়েছে। আপডেট করে আবার চেষ্টা করুন।',409);return Response.json({ok:true});
  }
  return fail('সঠিক তথ্য দিন।');
 }catch(e){return errorResponse(e);}}
+
