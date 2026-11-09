@@ -22,7 +22,6 @@ export async function products(includeHidden=false){
   return r.results.filter(row=>includeHidden||row.active===1).map(row=>{const seed=catalog.find(p=>p.id===row.id);return {id:row.id,name:row.name,bn:row.bn??seed?.bn??row.name,category:row.category??seed?.category??'pantry',unit:row.unit??seed?.unit??'১ পিস',image:row.image??seed?.image??'/product-placeholder.svg',popular:row.popular===null?!!seed?.popular:row.popular===1,price:row.price,originalPrice:row.original_price,stock:row.stock,active:row.active===1,lowStockThreshold:row.low_stock_threshold};});
  }catch(e){
   if(includeHidden)throw e;
-  console.error('products fallback to static catalog:',e instanceof Error?e.message:e);
   return catalog.map(p=>({...p,active:true,lowStockThreshold:5}));
  }
 }

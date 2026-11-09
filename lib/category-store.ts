@@ -5,8 +5,7 @@ export async function readCategorySettings(){
  try{
   const row=await database().prepare('SELECT value,revision FROM homepage_content WHERE id=?').bind('categories').first<{value:string;revision:number}>();
   return {settings:row?JSON.parse(row.value) as CategorySettings:defaultCategorySettings,revision:row?.revision||0};
- }catch(e){
-  console.error('readCategorySettings fallback:',e instanceof Error?e.message:e);
+ }catch{
   return {settings:defaultCategorySettings,revision:0};
  }
 }
