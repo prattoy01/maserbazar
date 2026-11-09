@@ -43,6 +43,11 @@
     "node_modules",
     "build",
     "examples",
+    "components/ui",
+    "components/connector-error.tsx",
+    "lib/utils.ts",
+    "lib/connector-errors.mts",
+    "drizzle.config.ts",
     "vite.config.ts",
     "cloudflare-env.d.ts"
   ]

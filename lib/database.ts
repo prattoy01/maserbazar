@@ -17,13 +17,29 @@ let migrationPromise:Promise<void>|null=null;
 async function ensureMigrated(client:Client){
  if(!migrationPromise){
   migrationPromise=(async()=>{
-   await client.execute('CREATE TABLE IF NOT EXISTS _vercel_migrations (name TEXT PRIMARY KEY, hash TEXT NOT NULL, applied_at TEXT NOT NULL)');
+   let names:string[]=[];
    const drizzleDir=path.join(process.cwd(),'drizzle');
-   const names=(await readdir(drizzleDir)).filter(n=>/^\d+.*\.sql$/.test(n)).sort();
+   try{
+    names=(await readdir(drizzleDir)).filter(n=>/^\d+.*\.sql$/.test(n)).sort();
+   }catch{
+    return;
+   }
+   if(!names.length)return;
+   let applied=new Set<string>();
+   try{
+    const existing=await client.execute('SELECT name FROM _vercel_migrations');
+    applied=new Set(existing.rows.map(r=>String(r.name)));
+    if(names.every(n=>applied.has(n)))return;
+   }catch{
+    try{
+     await client.execute('CREATE TABLE IF NOT EXISTS _vercel_migrations (name TEXT PRIMARY KEY, hash TEXT NOT NULL, applied_at TEXT NOT NULL)');
+    }catch{
+     return;
+    }
+   }
    for(const name of names){
+    if(applied.has(name))continue;
     const sql=await readFile(path.join(drizzleDir,name),'utf8'),hash=createHash('sha256').update(sql).digest('hex');
-    const previous=await client.execute({sql:'SELECT hash FROM _vercel_migrations WHERE name=?',args:[name]});
-    if(previous.rows.length)continue;
     const statements=sql.split('--> statement-breakpoint').map(s=>s.trim()).filter(Boolean);
     for(const stmt of statements){
      try{await client.execute(stmt);}catch(e){
@@ -31,7 +47,11 @@ async function ensureMigrated(client:Client){
       if(!/already exists|duplicate column/i.test(msg))throw e;
      }
     }
-    await client.execute({sql:'INSERT OR IGNORE INTO _vercel_migrations (name,hash,applied_at) VALUES (?,?,?)',args:[name,hash,new Date().toISOString()]});
+    try{
+     await client.execute({sql:'INSERT OR IGNORE INTO _vercel_migrations (name,hash,applied_at) VALUES (?,?,?)',args:[name,hash,new Date().toISOString()]});
+    }catch{
+     // Ignore if database is temporarily read-only
+    }
    }
   })().catch(err=>{
    migrationPromise=null;
