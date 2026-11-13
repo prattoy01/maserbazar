@@ -176,3 +176,50 @@
  .favourites-banner-left h1{font-size:20px}
 }
 
+/* Bangla QR Payment & Verification Styles */
+.payment-option{transition:border-color .15s,background .15s,box-shadow .15s;margin-bottom:10px}
+.payment-option.selected{border-color:var(--pink);background:#fff5f9;box-shadow:0 0 0 1px var(--pink)}
+.payment-option:not(.selected){border-color:#e5dde2;background:#fff}
+.payment-option:not(.selected) svg{color:#5e5560}
+.bangla-qr-box{border:1.5px solid #f0bfd5;border-radius:14px;background:linear-gradient(180deg,#fff9fc 0%,#ffffff 100%);padding:16px;margin-top:8px;box-shadow:0 8px 24px rgba(229,38,115,.07)}
+.bangla-qr-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid #f2dfe8}
+.bangla-qr-brand{display:flex;align-items:center;gap:10px}
+.bangla-qr-flag{width:34px;height:34px;border-radius:9px;background:#006a4e;display:grid;place-items:center;flex-shrink:0;box-shadow:0 2px 6px rgba(0,106,78,.25)}
+.bangla-qr-flag i{width:14px;height:14px;border-radius:50%;background:#f42a41;display:block}
+.bangla-qr-brand strong{display:block;font-size:14px;font-weight:800;color:#1d181f;letter-spacing:.02em}
+.bangla-qr-brand small{display:block;font-size:12px;color:#6c626e}
+.bangla-qr-amount-chip{background:#fff0f6;border:1px solid #f5bfd6;color:#9b174d;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600}
+.bangla-qr-amount-chip b{font-size:15px;font-weight:800;color:var(--pink)}
+.bangla-qr-apps{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 0}
+.qr-app-pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:.01em}
+.qr-app-pill.bkash{background:#fde7f0;color:#c91663}
+.qr-app-pill.nagad{background:#fff0e5;color:#d84b16}
+.qr-app-pill.rocket{background:#f3e8ff;color:#6e2594}
+.qr-app-pill.upay{background:#e7f4ff;color:#0b60a8}
+.qr-app-pill.bank{background:#e9f7ef;color:#0f6848}
+.bangla-qr-body{display:grid;grid-template-columns:195px minmax(0,1fr);gap:16px;align-items:start}
+.bangla-qr-frame{background:#fff;border:1px solid #eadfe4;border-radius:12px;padding:12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(25,18,24,.04)}
+.bangla-qr-svg,.bangla-qr-custom-img{width:165px;height:165px;object-fit:contain;border-radius:8px;display:block}
+.bangla-qr-merchant-name{font-size:13px;font-weight:700;color:#231d24;margin-top:2px}
+.bangla-qr-merchant-num{display:inline-flex;align-items:center;gap:6px;background:#f8f4f6;border:1px solid #e7dde2;padding:3px 8px;border-radius:7px;font-size:12px;font-weight:700;color:#2b232c}
+.bangla-qr-merchant-num button{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--pink);padding:2px 5px;border-radius:4px;background:#fff}
+.bangla-qr-instructions h4{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;color:#231d24;margin:0 0 8px}
+.bangla-qr-instructions ol{margin:0 0 12px;padding-left:18px;font-size:13px;color:#4e4550;line-height:1.55;display:flex;flex-direction:column;gap:5px}
+.bangla-qr-note{font-size:12px;color:#7a6874;background:#fdf6f9;border-left:3px solid var(--pink);padding:6px 10px;border-radius:4px;margin:0 0 12px}
+.bangla-qr-trx-label{margin:0!important;background:#fff;border:1px solid #ead9e2;padding:10px 12px;border-radius:10px}
+.bangla-qr-trx-label>span{display:block;font-size:13px;font-weight:700;color:#231d24;margin-bottom:6px}
+.bangla-qr-trx-label em{color:var(--pink);font-style:normal}
+.bangla-qr-trx-label input{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-color:#dfb8ca!important;background:#fffbfd!important}
+.bangla-qr-trx-label small{display:flex;align-items:center;gap:5px;font-size:12px;color:#665c68;margin-top:6px;line-height:1.4}
+.bangla-qr-trx-label small svg{color:#157f50;flex-shrink:0}
+.payment-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;line-height:1.2}
+.payment-badge.verified{background:#e6f7ee;color:#146c43;border:1px solid #b7e6cd}
+.payment-badge.pending{background:#fff6e5;color:#995c00;border:1px solid #f7d99c}
+.payment-badge.rejected{background:#ffebee;color:#b42318;border:1px solid #f7b9b5}
+.payment-badge.cod{background:#f3eff2;color:#544b56;border:1px solid #e2dbe0}
+.order-status-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:6px 0}
+.success-payment-card{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;background:#fdf6f9;border:1px solid #f2cfe0;border-radius:10px;padding:10px 14px;margin:10px 0;font-size:13px}
+.success-payment-card code{font-family:ui-monospace,monospace;font-weight:700;background:#fff;padding:2px 7px;border-radius:5px;border:1px solid #e6d8df;color:#1f1921}
+@media(max-width:640px){.bangla-qr-body{grid-template-columns:1fr}.bangla-qr-frame{max-width:220px;margin:0 auto}}
+
+

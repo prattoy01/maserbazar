@@ -2,9 +2,10 @@ import {adminDenied as authorized} from '@/lib/admin-auth';
 import {database,products,errorResponse,sameOrigin} from '@/lib/server';
 import {categories} from '@/lib/catalog';
 import {readCategorySettings} from '@/lib/category-store';
+import {readPaymentSettings} from '@/lib/payment-store';
 export const dynamic='force-dynamic';
 function fail(message:string,status=400){return Response.json({error:message},{status});}
-export async function GET(r:Request){try{const d=authorized(r);if(d)return d;const rows=await database().prepare('SELECT id,customer_name,phone,address,area,total,status,created_at,items,delivery_date,delivery_slot FROM orders ORDER BY created_at DESC LIMIT 100').all();const catSettings=(await readCategorySettings()).settings;return Response.json({products:await products(true),orders:rows.results,categorySettings:catSettings},{headers:{'Cache-Control':'no-store'}});}catch(e){return errorResponse(e);}}
+export async function GET(r:Request){try{const d=authorized(r);if(d)return d;const rows=await database().prepare('SELECT id,customer_name,phone,address,area,total,status,payment,trx_id,payment_status,created_at,items,delivery_date,delivery_slot FROM orders ORDER BY created_at DESC LIMIT 100').all();const catSettings=(await readCategorySettings()).settings;const paySettings=(await readPaymentSettings()).settings;return Response.json({products:await products(true),orders:rows.results,categorySettings:catSettings,paymentSettings:paySettings},{headers:{'Cache-Control':'no-store'}});}catch(e){return errorResponse(e);}}
 export async function POST(r:Request){try{
  sameOrigin(r);const denied=authorized(r);if(denied)return denied;
  const raw=await r.text();if(raw.length>6000)return fail('তথ্য খুব বড়।');let b:Record<string,unknown>;try{b=JSON.parse(raw);if(!b||typeof b!=='object'||Array.isArray(b))return fail('সঠিক তথ্য দিন।');}catch{return fail('সঠিক তথ্য দিন।');}
@@ -47,6 +48,32 @@ export async function POST(r:Request){try{
  if(b.type==='order'&&typeof b.id==='string'&&typeof b.status==='string'){
   const row=await db.prepare('SELECT status FROM orders WHERE id=?').bind(b.id).first<{status:string}>(),steps=['received','confirmed','packing','out_for_delivery','delivered'];if(!row||steps.indexOf(b.status)!==steps.indexOf(row.status)+1)return fail('অর্ডারের পরবর্তী ধাপ নির্বাচন করুন।');
   const result=await db.prepare('UPDATE orders SET status=? WHERE id=? AND status=?').bind(b.status,b.id,row.status).run();if(result.meta.changes!==1)return fail('অর্ডারটি পরিবর্তিত হয়েছে। আপডেট করে আবার চেষ্টা করুন।',409);return Response.json({ok:true});
+ }
+ if(b.type==='verify_payment'&&typeof b.id==='string'&&typeof b.paymentStatus==='string'){
+  if(!['verified','rejected','pending'].includes(b.paymentStatus))return fail('পেমেন্টের অবস্থা সঠিক নয়।');
+  const row=await db.prepare('SELECT status,payment FROM orders WHERE id=?').bind(b.id).first<{status:string;payment:string}>();
+  if(!row)return fail('অর্ডারটি পাওয়া যায়নি।',404);
+  const nextOrderStatus=b.paymentStatus==='verified'&&row.status==='received'?'confirmed':row.status;
+  const result=await db.prepare('UPDATE orders SET payment_status=?,status=? WHERE id=?').bind(b.paymentStatus,nextOrderStatus,b.id).run();
+  if(result.meta.changes!==1)return fail('পেমেন্ট আপডেট করা যায়নি।',409);
+  return Response.json({ok:true});
+ }
+ if(b.type==='payment_settings'){
+  const merchantName=typeof b.merchantName==='string'?b.merchantName.trim():'';
+  const merchantNumber=typeof b.merchantNumber==='string'?b.merchantNumber.trim():'';
+  const qrImage=typeof b.qrImage==='string'?b.qrImage.trim():'';
+  const noteBn=typeof b.noteBn==='string'?b.noteBn.trim():'';
+  const noteEn=typeof b.noteEn==='string'?b.noteEn.trim():'';
+  if(!merchantName||merchantName.length>120)return fail('মার্চেন্টের নাম সঠিকভাবে লিখুন।');
+  if(merchantNumber.length>60)return fail('মার্চেন্ট নম্বর সঠিকভাবে লিখুন।');
+  if(qrImage.startsWith('/api/images/')){
+   if(!/^\/api\/images\/[a-f0-9-]{36}$/.test(qrImage)||!await db.prepare('SELECT id FROM product_images WHERE id=?').bind(qrImage.split('/').pop()!).first())return fail('আপলোড করা QR ছবিটি পাওয়া যায়নি।');
+  }else if(qrImage){
+   try{const url=new URL(qrImage);if(url.protocol!=='https:'||qrImage.length>1000)return fail('QR কোডের ছবি আপলোড করুন অথবা HTTPS লিংক দিন।');}catch{return fail('QR কোডের ছবি আপলোড করুন অথবা HTTPS লিংক দিন।');}
+  }
+  const payload=JSON.stringify({merchantName,merchantNumber,qrImage,noteBn,noteEn});
+  await db.prepare('INSERT INTO homepage_content (id,value,revision) VALUES (?,?,1) ON CONFLICT(id) DO UPDATE SET value=excluded.value,revision=homepage_content.revision+1').bind('payment_settings',payload).run();
+  return Response.json({ok:true});
  }
  return fail('সঠিক তথ্য দিন।');
 }catch(e){return errorResponse(e);}}

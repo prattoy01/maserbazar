@@ -73,7 +73,15 @@ async function ensureMigrated(client:Client){
 }
 
 let fallbackClient:Client|null=null;
-let remoteFailed=false;
+let remoteFailedUntil=0;
+
+function isRemoteTemporarilyDown():boolean{
+ return Date.now()<remoteFailedUntil;
+}
+
+function markRemoteDown():void{
+ remoteFailedUntil=Date.now()+15_000;
+}
 
 function getLocalFallbackClient():Client{
  if(!fallbackClient){
@@ -101,57 +109,50 @@ class Prepared {
 }
 
 class Database {
- constructor(private client:Client,private readonly isRemote:boolean){}
+ constructor(private readonly remoteClient:Client|null){}
  prepare(sql:string){return new Prepared(this,sql);}
  async executePrepared<T=Row>(stmt:InStatement):Promise<Reply<T>>{
-  if(this.isRemote&&remoteFailed){
-   this.client=getLocalFallbackClient();
-  }
-  try{
-   await ensureMigrated(this.client);
-   return reply<T>(await this.client.execute(stmt));
-  }catch(e){
-   if(this.isRemote&&!remoteFailed&&isRemoteDownError(e)){
-    remoteFailed=true;
-    this.client=getLocalFallbackClient();
-    await ensureMigrated(this.client);
-    return reply<T>(await this.client.execute(stmt));
+  if(this.remoteClient&&!isRemoteTemporarilyDown()){
+   try{
+    await ensureMigrated(this.remoteClient);
+    return reply<T>(await this.remoteClient.execute(stmt));
+   }catch(e){
+    if(!isRemoteDownError(e))throw e;
+    markRemoteDown();
    }
-   throw e;
   }
+  const local=getLocalFallbackClient();
+  await ensureMigrated(local);
+  return reply<T>(await local.execute(stmt));
  }
  async batch<T=Row>(statements:Prepared[]):Promise<Reply<T>[]>{
-  if(this.isRemote&&remoteFailed){
-   this.client=getLocalFallbackClient();
-  }
   const raw=statements.map(s=>s.statement());
-  try{
-   await ensureMigrated(this.client);
-   const results=await this.client.batch(raw,'write');
-   return results.map(result=>reply<T>(result));
-  }catch(e){
-   if(this.isRemote&&!remoteFailed&&isRemoteDownError(e)){
-    remoteFailed=true;
-    this.client=getLocalFallbackClient();
-    await ensureMigrated(this.client);
-    const results=await this.client.batch(raw,'write');
+  if(this.remoteClient&&!isRemoteTemporarilyDown()){
+   try{
+    await ensureMigrated(this.remoteClient);
+    const results=await this.remoteClient.batch(raw,'write');
     return results.map(result=>reply<T>(result));
+   }catch(e){
+    if(!isRemoteDownError(e))throw e;
+    markRemoteDown();
    }
-   throw e;
   }
+  const local=getLocalFallbackClient();
+  await ensureMigrated(local);
+  const results=await local.batch(raw,'write');
+  return results.map(result=>reply<T>(result));
  }
 }
 
 let cached:{url:string;token:string|undefined;db:Database}|undefined;
 export function database(){
  const rawUrl=process.env.TURSO_DATABASE_URL||'file:.local/store.db',token=process.env.TURSO_AUTH_TOKEN;
- const isLocalFile=rawUrl.startsWith('file:')||!token||remoteFailed;
- const effectiveUrl=isLocalFile?(process.env.VERCEL?'file:/tmp/.local/store.db':'file:.local/store.db'):rawUrl;
- if(!cached||cached.url!==effectiveUrl||cached.token!==token){
+ const isLocalFile=rawUrl.startsWith('file:')||!token;
+ if(!cached||cached.url!==rawUrl||cached.token!==token){
   if(isLocalFile){
-   cached={url:effectiveUrl,token,db:new Database(getLocalFallbackClient(),false)};
+   cached={url:rawUrl,token,db:new Database(null)};
   }else{
-   cached={url:effectiveUrl,token,db:new Database(createRemoteClient({url:effectiveUrl,authToken:token,intMode:'number'}),true)};
+   cached={url:rawUrl,token,db:new Database(createRemoteClient({url:rawUrl,authToken:token,intMode:'number'}))};
   }
  }
  return cached.db;
