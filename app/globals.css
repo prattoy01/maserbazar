@@ -177,41 +177,89 @@
 }
 
 /* Bangla QR Payment & Verification Styles */
-.payment-option{transition:border-color .15s,background .15s,box-shadow .15s;margin-bottom:10px}
-.payment-option.selected{border-color:var(--pink);background:#fff5f9;box-shadow:0 0 0 1px var(--pink)}
-.payment-option:not(.selected){border-color:#e5dde2;background:#fff}
-.payment-option:not(.selected) svg{color:#5e5560}
-.bangla-qr-box{border:1.5px solid #f0bfd5;border-radius:14px;background:linear-gradient(180deg,#fff9fc 0%,#ffffff 100%);padding:16px;margin-top:8px;box-shadow:0 8px 24px rgba(229,38,115,.07)}
-.bangla-qr-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid #f2dfe8}
-.bangla-qr-brand{display:flex;align-items:center;gap:10px}
-.bangla-qr-flag{width:34px;height:34px;border-radius:9px;background:#006a4e;display:grid;place-items:center;flex-shrink:0;box-shadow:0 2px 6px rgba(0,106,78,.25)}
-.bangla-qr-flag i{width:14px;height:14px;border-radius:50%;background:#f42a41;display:block}
-.bangla-qr-brand strong{display:block;font-size:14px;font-weight:800;color:#1d181f;letter-spacing:.02em}
-.bangla-qr-brand small{display:block;font-size:12px;color:#6c626e}
-.bangla-qr-amount-chip{background:#fff0f6;border:1px solid #f5bfd6;color:#9b174d;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600}
-.bangla-qr-amount-chip b{font-size:15px;font-weight:800;color:var(--pink)}
-.bangla-qr-apps{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 0}
-.qr-app-pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:.01em}
+.dialog.wide{width:min(940px,calc(100% - 28px))}
+.checkout-form{display:grid;grid-template-columns:1fr 1.08fr;gap:26px;align-items:start}
+.checkout-summary{position:sticky;top:72px;background:transparent;border:0;padding:0;display:flex;flex-direction:column;gap:14px}
+.checkout-summary-card{background:#faf7f9;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-top:4px}
+.checkout-summary-card h3{font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px;color:var(--ink)}
+.checkout-summary-card h3 svg{color:var(--pink)}
+.checkout-lines-scroll{max-height:145px;overflow-y:auto;scrollbar-width:thin;padding-right:2px}
+.checkout-payment-panel{background:#fcf9fb;border:1px solid #eadce3;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 6px 24px rgba(35,20,30,.04)}
+.payment-panel-title{font-size:17px;font-weight:700;display:flex;align-items:center;gap:8px;color:#211c22;margin:0}
+.payment-panel-title svg{color:var(--pink)}
+.checkout-submit-btn{min-height:52px;font-size:16px;font-weight:700;border-radius:11px;box-shadow:0 8px 22px rgba(229,38,115,.25)}
+
+.payment-methods-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.payment-option{display:flex;align-items:center;gap:10px;padding:12px 13px;border-radius:12px;border:1.5px solid #e5dde2;background:#fff;transition:border-color .15s,background .15s,box-shadow .15s;margin:0;cursor:pointer}
+.payment-option input{margin:0;width:17px;height:17px;accent-color:var(--pink);flex-shrink:0}
+.payment-opt-icon.cod-icon{width:36px;height:36px;border-radius:9px;background:#fff0f6;color:var(--pink);display:grid;place-items:center;flex-shrink:0}
+.payment-opt-logo{width:38px;height:38px;object-fit:contain;border-radius:8px;background:#fff;border:1px solid #eee4e9;padding:3px;flex-shrink:0}
+.payment-option span{min-width:0}
+.payment-option b{display:block;font-size:14px;font-weight:700;color:#211c22;line-height:1.25;margin-bottom:2px}
+.payment-option small{display:block;font-size:11.5px;color:#6f6671;line-height:1.3}
+.payment-option.selected{border-color:var(--pink);background:#fff4f8;box-shadow:0 0 0 1px var(--pink)}
+
+.cod-summary-box{background:#fff;border:1px solid #eadfe4;border-radius:13px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.cod-summary-amount{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px dashed #e9dfe4}
+.cod-summary-amount span{font-size:14px;font-weight:600;color:#5d5460}
+.cod-summary-amount strong{font-size:22px;font-weight:800;color:var(--pink)}
+.cod-summary-box .demo-notice{margin:0}
+
+.bangla-qr-box{border:1.5px solid #ebbfd2;border-radius:15px;background:#ffffff;padding:16px;box-shadow:0 8px 26px rgba(229,38,115,.07);display:flex;flex-direction:column;gap:14px}
+.bangla-qr-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:12px;border-bottom:1px solid #f2e4eb}
+.bangla-qr-brand{display:flex;align-items:center;gap:11px;min-width:0}
+.bangla-qr-logo-img{width:44px;height:44px;object-fit:contain;border-radius:9px;background:#fff;border:1px solid #e8dfe4;padding:3px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.bangla-qr-brand strong{display:block;font-size:14.5px;font-weight:800;color:#1b161d;letter-spacing:.01em;line-height:1.25}
+.bangla-qr-brand small{display:block;font-size:12px;color:#6c626e;margin-top:2px}
+.bangla-qr-amount-chip{background:linear-gradient(135deg,#fff0f6 0%,#ffe4ef 100%);border:1px solid #f4bdd4;color:#9b174d;padding:6px 13px;border-radius:11px;text-align:right;flex-shrink:0}
+.bangla-qr-amount-chip span{display:block;font-size:11px;font-weight:600;color:#8c3b5c;line-height:1.1}
+.bangla-qr-amount-chip b{display:block;font-size:18px;font-weight:800;color:var(--pink);line-height:1.25;margin-top:1px}
+
+.bangla-qr-apps{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;background:#faf6f8;padding:7px 10px;border-radius:9px}
+.qr-app-pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;line-height:1.25}
 .qr-app-pill.bkash{background:#fde7f0;color:#c91663}
 .qr-app-pill.nagad{background:#fff0e5;color:#d84b16}
 .qr-app-pill.rocket{background:#f3e8ff;color:#6e2594}
 .qr-app-pill.upay{background:#e7f4ff;color:#0b60a8}
 .qr-app-pill.bank{background:#e9f7ef;color:#0f6848}
-.bangla-qr-body{display:grid;grid-template-columns:195px minmax(0,1fr);gap:16px;align-items:start}
-.bangla-qr-frame{background:#fff;border:1px solid #eadfe4;border-radius:12px;padding:12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(25,18,24,.04)}
-.bangla-qr-svg,.bangla-qr-custom-img{width:165px;height:165px;object-fit:contain;border-radius:8px;display:block}
-.bangla-qr-merchant-name{font-size:13px;font-weight:700;color:#231d24;margin-top:2px}
-.bangla-qr-merchant-num{display:inline-flex;align-items:center;gap:6px;background:#f8f4f6;border:1px solid #e7dde2;padding:3px 8px;border-radius:7px;font-size:12px;font-weight:700;color:#2b232c}
-.bangla-qr-merchant-num button{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--pink);padding:2px 5px;border-radius:4px;background:#fff}
-.bangla-qr-instructions h4{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;color:#231d24;margin:0 0 8px}
-.bangla-qr-instructions ol{margin:0 0 12px;padding-left:18px;font-size:13px;color:#4e4550;line-height:1.55;display:flex;flex-direction:column;gap:5px}
-.bangla-qr-note{font-size:12px;color:#7a6874;background:#fdf6f9;border-left:3px solid var(--pink);padding:6px 10px;border-radius:4px;margin:0 0 12px}
-.bangla-qr-trx-label{margin:0!important;background:#fff;border:1px solid #ead9e2;padding:10px 12px;border-radius:10px}
-.bangla-qr-trx-label>span{display:block;font-size:13px;font-weight:700;color:#231d24;margin-bottom:6px}
-.bangla-qr-trx-label em{color:var(--pink);font-style:normal}
-.bangla-qr-trx-label input{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-color:#dfb8ca!important;background:#fffbfd!important}
-.bangla-qr-trx-label small{display:flex;align-items:center;gap:5px;font-size:12px;color:#665c68;margin-top:6px;line-height:1.4}
-.bangla-qr-trx-label small svg{color:#157f50;flex-shrink:0}
+
+/* Large Centered QR Code Stage */
+.bangla-qr-stage{background:linear-gradient(180deg,#fff8fb 0%,#ffffff 100%);border:1.5px dashed #e6bfd0;border-radius:14px;padding:16px 14px 14px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.bangla-qr-visual-large{background:#fff;border:2px solid #0d7a3e22;border-radius:16px;padding:10px;box-shadow:0 8px 24px rgba(13,122,62,.09);display:flex;align-items:center;justify-content:center}
+.bangla-qr-code-canvas{position:relative;width:210px;height:210px;display:flex;align-items:center;justify-content:center}
+.bangla-qr-svg,.bangla-qr-custom-img{width:210px;height:210px;object-fit:contain;border-radius:10px;display:block}
+.bangla-qr-center-badge{position:absolute;width:50px;height:50px;border-radius:11px;background:#ffffff;border:2px solid #0d7a3e;box-shadow:0 3px 10px rgba(0,0,0,.14);display:grid;place-items:center;padding:3px}
+.bangla-qr-center-badge img{width:100%;height:100%;object-fit:contain}
+
+.bangla-qr-merchant-bar{width:100%;background:#fff;border:1px solid #eadde4;border-radius:10px;padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.bangla-qr-merchant-info{display:flex;align-items:center;gap:6px;font-size:13px}
+.bangla-qr-merchant-info .merchant-label{color:#746a76;font-weight:500}
+.bangla-qr-merchant-info strong{color:#1f1921;font-weight:700}
+.bangla-qr-merchant-num{display:inline-flex;align-items:center;gap:7px;background:#f8f4f6;border:1px solid #e6dce1;padding:3px 4px 3px 9px;border-radius:7px}
+.bangla-qr-merchant-num code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;font-weight:700;color:#211a23}
+.bangla-qr-merchant-num button{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:#fff;padding:4px 9px;border-radius:5px;background:var(--pink);transition:background .15s}
+.bangla-qr-merchant-num button:hover{background:var(--pink-dark)}
+
+/* Full-width Readable 3-Step Guide */
+.bangla-qr-guide{background:#faf7f9;border:1px solid #ece3e8;border-radius:11px;padding:12px 14px}
+.bangla-qr-guide-title{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#2b232d;margin-bottom:8px}
+.bangla-qr-guide-title svg{color:var(--pink);flex-shrink:0}
+.bangla-qr-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.bangla-qr-steps li{display:flex;align-items:flex-start;gap:9px;font-size:13px;color:#3d3540;line-height:1.45}
+.bangla-qr-steps li b{width:20px;height:20px;border-radius:50%;background:#ffe4f0;color:var(--pink);font-size:11.5px;font-weight:800;display:inline-grid;place-items:center;flex-shrink:0;margin-top:1px}
+
+/* Prominent TrxID Input Box */
+.bangla-qr-trx-field{background:linear-gradient(180deg,#fff5f9 0%,#ffffff 100%);border:2px solid #e5267355;padding:13px 14px;border-radius:12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 14px rgba(229,38,115,.08)}
+.bangla-qr-trx-label-head{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer}
+.bangla-qr-trx-label-head>span:first-child{font-size:14.5px;font-weight:800;color:#1f1921}
+.bangla-qr-trx-label-head em{color:var(--pink);font-style:normal}
+.trx-badge{font-size:11px;font-weight:700;background:#ffe0ec;color:#b81458;padding:2px 8px;border-radius:999px}
+.bangla-qr-trx-field input{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-weight:800;font-size:16px;letter-spacing:.06em;text-transform:uppercase;border:1.5px solid #d7a3bc!important;background:#ffffff!important;border-radius:9px;min-height:48px;padding:10px 14px;width:100%;color:#19141b;box-shadow:inset 0 1px 3px rgba(0,0,0,.04)}
+.bangla-qr-trx-field input::placeholder{font-weight:500;letter-spacing:normal;text-transform:none;color:#958996;font-size:13.5px}
+.bangla-qr-trx-field input:focus{border-color:var(--pink)!important;outline:3px solid #e5267330!important}
+.bangla-qr-verify-hint{display:flex;align-items:center;gap:6px;font-size:12px;color:#4f4652;line-height:1.4;margin:0}
+.bangla-qr-verify-hint svg{color:#0d7a3e;flex-shrink:0}
+
 .payment-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;line-height:1.2}
 .payment-badge.verified{background:#e6f7ee;color:#146c43;border:1px solid #b7e6cd}
 .payment-badge.pending{background:#fff6e5;color:#995c00;border:1px solid #f7d99c}
@@ -220,6 +268,12 @@
 .order-status-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:6px 0}
 .success-payment-card{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;background:#fdf6f9;border:1px solid #f2cfe0;border-radius:10px;padding:10px 14px;margin:10px 0;font-size:13px}
 .success-payment-card code{font-family:ui-monospace,monospace;font-weight:700;background:#fff;padding:2px 7px;border-radius:5px;border:1px solid #e6d8df;color:#1f1921}
-@media(max-width:640px){.bangla-qr-body{grid-template-columns:1fr}.bangla-qr-frame{max-width:220px;margin:0 auto}}
+@media(max-width:780px){
+ .checkout-form{grid-template-columns:1fr;gap:18px}
+ .checkout-summary{position:static}
+ .payment-methods-grid{grid-template-columns:1fr}
+}
+
+
 
 
